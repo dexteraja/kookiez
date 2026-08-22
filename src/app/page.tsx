@@ -1,0 +1,1299 @@
+"use client";
+
+import { useState, useRef, useEffect, type ChangeEvent, type DragEvent, type RefObject } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Menu, X, ArrowRight, ArrowLeft, Check, ChevronDown,
+  UploadCloud, FileText, Trash2,
+  QrCode, Landmark, CreditCard, ShieldCheck, Loader2, CheckCircle2,
+  Calendar, Link2, Mail, LogOut, Instagram,
+  MessageCircle, Globe, Copy,
+  type LucideIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { useSession, signIn, signOut } from "next-auth/react";
+import {
+  useLang, useServices, useBudgetTiers, useWork, useTerms,
+  type ServiceId, type BudgetId, type ServiceItem, type BudgetTier, type WorkItem, type TermItem,
+} from "@/lib/i18n";
+import { saveOrder, generateOrderCode, type StoredOrder } from "@/lib/orders";
+
+/* ------------------------------------------------------------------ */
+/*  Konfigurasi CS WhatsApp — ganti nomor & pesan default di sini      */
+/* ------------------------------------------------------------------ */
+
+const WA_NUMBER = "6285792006860"; // TODO: ganti dengan nomor CS asli
+const waLink = (msg: string): string => `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
+
+/* ------------------------------------------------------------------ */
+/*  Tipe data                                                          */
+/* ------------------------------------------------------------------ */
+
+type PaymentPlan = "deposit" | "full";
+type PaymentMethod = "qris" | "va" | "card";
+
+interface UploadedFile {
+  name: string;
+  size: string;
+  url?: string;
+  uploading?: boolean;
+}
+
+interface BriefData {
+  scope: string;
+  refs: string;
+  files: UploadedFile[];
+}
+
+interface BudgetData {
+  budget: BudgetId | null;
+  deadline: string;
+}
+
+interface OrderState {
+  plan: PaymentPlan;
+  method: PaymentMethod;
+}
+
+interface CheckoutOrder extends OrderState {
+  service: ServiceId | null;
+  budget: BudgetId | null;
+  deadline: string;
+}
+
+interface SuccessData {
+  code: string;
+  service?: string;
+  tier?: string;
+  deadline: string;
+  plan: string;
+  method: PaymentMethod;
+  amount: number | null;
+  isCustom: boolean;
+}
+
+interface NavRefs {
+  home: RefObject<HTMLDivElement>;
+  work: RefObject<HTMLElement>;
+  terms: RefObject<HTMLElement>;
+}
+
+const formatIDR = (n: number): string =>
+  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+
+/* ------------------------------------------------------------------ */
+/*  Komponen kecil                                                     */
+/* ------------------------------------------------------------------ */
+
+function TicketDivider() {
+  return (
+    <div className="relative flex items-center py-1">
+      <div className="h-3 w-3 -ml-[22px] rounded-full bg-[#F9F9FB] border border-[#1A1A1E]/10" />
+      <div className="flex-1 border-t border-dashed border-[#1A1A1E]/20 mx-2" />
+      <div className="h-3 w-3 -mr-[22px] rounded-full bg-[#F9F9FB] border border-[#1A1A1E]/10" />
+    </div>
+  );
+}
+
+function StepDots({ step }: { step: number }) {
+  const { t } = useLang();
+  const labels = t("step_labels") as string[];
+  return (
+    <div className="flex items-center gap-2 font-mono text-[11px] tracking-wide">
+      {labels.map((label, i) => {
+        const n = i + 1;
+        const active = n === step;
+        const done = n < step;
+        return (
+          <div key={label} className="flex items-center gap-2">
+            <div
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md border ${
+                active
+                  ? "border-[#0038FF] text-[#0038FF] bg-[#0038FF]/5"
+                  : done
+                  ? "border-[#1A1A1E]/15 text-[#1A1A1E]/60"
+                  : "border-[#1A1A1E]/10 text-[#1A1A1E]/30"
+              }`}
+            >
+              <span>{done ? <Check className="w-3 h-3" /> : `0${n}`}</span>
+              <span className="hidden sm:inline">{label}</span>
+            </div>
+            {n < 4 && <div className="w-3 h-px bg-[#1A1A1E]/15" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Accordion({ items }: { items: TermItem[] }) {
+  const [open, setOpen] = useState<number>(0);
+  return (
+    <div className="divide-y divide-[#1A1A1E]/10 border-t border-b border-[#1A1A1E]/10">
+      {items.map((item, i) => {
+        const isOpen = open === i;
+        return (
+          <div key={item.title}>
+            <button
+              onClick={() => setOpen(isOpen ? -1 : i)}
+              className="w-full flex items-center justify-between py-5 text-left group"
+              aria-expanded={isOpen}
+            >
+              <span className="font-medium text-[#1A1A1E] group-hover:text-[#0038FF] transition-colors">
+                {item.title}
+              </span>
+              <ChevronDown
+                className={`w-4 h-4 text-[#1A1A1E]/40 shrink-0 transition-transform duration-200 ${
+                  isOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            <AnimatePresence initial={false}>
+              {isOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <p className="pb-5 text-sm leading-relaxed text-[#1A1A1E]/60 max-w-2xl">{item.body}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function LangToggle({ className = "" }: { className?: string }) {
+  const { lang, toggleLang } = useLang();
+  return (
+    <button
+      onClick={toggleLang}
+      className={`flex items-center gap-1.5 font-mono text-xs font-medium border border-[#1A1A1E]/15 rounded-full px-3 py-1.5 hover:border-[#1A1A1E]/30 transition-colors ${className}`}
+      aria-label="Toggle language"
+    >
+      <Globe className="w-3.5 h-3.5" />
+      {lang === "id" ? "ID" : "EN"}
+    </button>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Langkah-langkah formulir pembelian                                 */
+/* ------------------------------------------------------------------ */
+
+function StepService({ value, onChange }: { value: ServiceId | null; onChange: (id: ServiceId) => void }) {
+  const { t } = useLang();
+  const services = useServices();
+  return (
+    <div>
+      <h3 className="font-mono text-xs tracking-widest text-[#1A1A1E]/40 mb-1">{t("step1_kicker")}</h3>
+      <h2 className="font-heading text-2xl font-semibold text-[#1A1A1E] mb-6">{t("step1_title")}</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {services.map((s) => {
+          const Icon = s.icon;
+          const active = value === s.id;
+          return (
+            <button
+              key={s.id}
+              onClick={() => onChange(s.id)}
+              className={`text-left p-5 rounded-lg border transition-colors ${
+                active ? "border-[#0038FF] bg-[#0038FF]/5" : "border-[#1A1A1E]/10 hover:border-[#1A1A1E]/30"
+              }`}
+            >
+              <div
+                className={`w-9 h-9 rounded-md flex items-center justify-center mb-4 ${
+                  active ? "bg-[#0038FF] text-white" : "bg-[#1A1A1E]/5 text-[#1A1A1E]/60"
+                }`}
+              >
+                <Icon className="w-[18px] h-[18px]" />
+              </div>
+              <div className="font-medium text-[#1A1A1E]">{s.title}</div>
+              <div className="text-sm text-[#1A1A1E]/50 mt-1">{s.desc}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function StepBrief({
+  data,
+  onChange,
+}: {
+  data: BriefData;
+  onChange: (updater: BriefData | ((prev: BriefData) => BriefData)) => void;
+}) {
+  const { t } = useLang();
+  const [dragActive, setDragActive] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Upload nyata ke /api/upload (lihat route-nya untuk detail penyimpanan file).
+  const addFiles = (fileList: FileList) => {
+    const incoming: UploadedFile[] = Array.from(fileList).map((f) => ({
+      name: f.name,
+      size: (f.size / 1024).toFixed(0) + " KB",
+      uploading: true,
+    }));
+    onChange((prev) => ({ ...prev, files: [...prev.files, ...incoming] }));
+
+    Array.from(fileList).forEach(async (file) => {
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const res = await fetch("/api/upload", { method: "POST", body: form });
+        const json = await res.json();
+        onChange((prev) => ({
+          ...prev,
+          files: prev.files.map((f) =>
+            f.name === file.name ? { ...f, uploading: false, url: json?.url } : f
+          ),
+        }));
+      } catch {
+        // Upload gagal — tetap tandai selesai supaya UI tidak macet; brief text tetap terkirim manual via WA.
+        onChange((prev) => ({
+          ...prev,
+          files: prev.files.map((f) => (f.name === file.name ? { ...f, uploading: false } : f)),
+        }));
+      }
+    });
+  };
+
+  const removeFile = (name: string) => {
+    onChange((prev) => ({ ...prev, files: prev.files.filter((f) => f.name !== name) }));
+  };
+
+  return (
+    <div>
+      <h3 className="font-mono text-xs tracking-widest text-[#1A1A1E]/40 mb-1">{t("step2_kicker")}</h3>
+      <h2 className="font-heading text-2xl font-semibold text-[#1A1A1E] mb-6">{t("step2_title")}</h2>
+
+      <label className="block text-sm font-medium text-[#1A1A1E] mb-2">{t("step2_detail_label")}</label>
+      <textarea
+        rows={4}
+        value={data.scope}
+        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onChange({ ...data, scope: e.target.value })}
+        placeholder={t("step2_detail_placeholder")}
+        className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm text-[#1A1A1E] placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF] resize-none"
+      />
+
+      <label className="block text-sm font-medium text-[#1A1A1E] mb-2 mt-5">{t("step2_ref_label")}</label>
+      <div className="relative">
+        <Link2 className="w-4 h-4 text-[#1A1A1E]/30 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <input
+          type="text"
+          value={data.refs}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => onChange({ ...data, refs: e.target.value })}
+          placeholder={t("step2_ref_placeholder")}
+          className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white pl-10 pr-4 py-3 text-sm text-[#1A1A1E] placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF]"
+        />
+      </div>
+
+      <label className="block text-sm font-medium text-[#1A1A1E] mb-2 mt-5">{t("step2_file_label")}</label>
+      <div
+        onDragOver={(e: DragEvent<HTMLDivElement>) => {
+          e.preventDefault();
+          setDragActive(true);
+        }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={(e: DragEvent<HTMLDivElement>) => {
+          e.preventDefault();
+          setDragActive(false);
+          if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+        }}
+        onClick={() => fileRef.current?.click()}
+        className={`rounded-lg border border-dashed p-8 text-center cursor-pointer transition-colors ${
+          dragActive ? "border-[#0038FF] bg-[#0038FF]/5" : "border-[#1A1A1E]/20 hover:border-[#1A1A1E]/40"
+        }`}
+      >
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e: ChangeEvent<HTMLInputElement>) => e.target.files?.length && addFiles(e.target.files)}
+        />
+        <UploadCloud className="w-5 h-5 mx-auto text-[#1A1A1E]/40 mb-2" />
+        <p className="text-sm text-[#1A1A1E]/60">
+          {t("step2_file_drag")} <span className="text-[#0038FF] font-medium">{t("step2_file_choose")}</span>
+        </p>
+        <p className="text-xs text-[#1A1A1E]/35 mt-1">{t("step2_file_hint")}</p>
+      </div>
+
+      {data.files.length > 0 && (
+        <ul className="mt-3 space-y-1.5">
+          {data.files.map((f) => (
+            <li
+              key={f.name}
+              className="flex items-center justify-between text-sm rounded-md border border-[#1A1A1E]/10 px-3 py-2"
+            >
+              <span className="flex items-center gap-2 text-[#1A1A1E]/70 truncate">
+                <FileText className="w-3.5 h-3.5 shrink-0 text-[#1A1A1E]/40" />
+                {f.name}
+                <span className="text-[#1A1A1E]/30 font-mono text-xs">{f.size}</span>
+                <span className="text-[10px] font-mono text-[#0038FF]/60">
+                  {f.uploading ? t("step2_file_uploading") : t("step2_file_uploaded")}
+                </span>
+              </span>
+              <button onClick={() => removeFile(f.name)} aria-label={`Hapus ${f.name}`}>
+                <Trash2 className="w-3.5 h-3.5 text-[#1A1A1E]/30 hover:text-[#0038FF]" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function StepBudget({ data, onChange }: { data: BudgetData; onChange: (d: BudgetData) => void }) {
+  const { t } = useLang();
+  const budgetTiers = useBudgetTiers();
+  return (
+    <div>
+      <h3 className="font-mono text-xs tracking-widest text-[#1A1A1E]/40 mb-1">{t("step3_kicker")}</h3>
+      <h2 className="font-heading text-2xl font-semibold text-[#1A1A1E] mb-6">{t("step3_title")}</h2>
+
+      <label className="block text-sm font-medium text-[#1A1A1E] mb-2">{t("step3_budget_label")}</label>
+      <div className="grid grid-cols-2 gap-3">
+        {budgetTiers.map((tier) => {
+          const active = data.budget === tier.id;
+          return (
+            <button
+              key={tier.id}
+              onClick={() => onChange({ ...data, budget: tier.id })}
+              className={`text-left p-4 rounded-lg border transition-colors ${
+                active ? "border-[#0038FF] bg-[#0038FF]/5" : "border-[#1A1A1E]/10 hover:border-[#1A1A1E]/30"
+              }`}
+            >
+              <div className="font-medium text-[#1A1A1E] text-sm">{tier.label}</div>
+              <div className="text-xs text-[#1A1A1E]/50 mt-1 font-mono">{tier.range}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      <label className="block text-sm font-medium text-[#1A1A1E] mb-2 mt-6">{t("step3_deadline_label")}</label>
+      <div className="relative">
+        <Calendar className="w-4 h-4 text-[#1A1A1E]/30 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <input
+          type="date"
+          value={data.deadline}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => onChange({ ...data, deadline: e.target.value })}
+          className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white pl-10 pr-4 py-3 text-sm text-[#1A1A1E] focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF]"
+        />
+      </div>
+    </div>
+  );
+}
+
+function StepCheckout({
+  order,
+  onChange,
+  onPay,
+  paying,
+}: {
+  order: CheckoutOrder;
+  onChange: (o: OrderState) => void;
+  onPay: () => void;
+  paying: boolean;
+}) {
+  const { t } = useLang();
+  const services = useServices();
+  const budgetTiers = useBudgetTiers();
+  const service = services.find((s) => s.id === order.service);
+  const tier = budgetTiers.find((tItem) => tItem.id === order.budget);
+  const isCustom = tier?.base == null;
+  const base = tier?.base ?? 0;
+  const amount = order.plan === "deposit" ? Math.round(base * 0.3) : base;
+
+  return (
+    <div>
+      <h3 className="font-mono text-xs tracking-widest text-[#1A1A1E]/40 mb-1">{t("step4_kicker")}</h3>
+      <h2 className="font-heading text-2xl font-semibold text-[#1A1A1E] mb-6">{t("step4_title")}</h2>
+
+      <div className="rounded-lg border border-[#1A1A1E]/10 overflow-hidden">
+        <div className="p-5 space-y-2.5 text-sm">
+          <div className="flex justify-between">
+            <span className="text-[#1A1A1E]/50">{t("step4_service")}</span>
+            <span className="font-medium text-[#1A1A1E]">{service?.title}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[#1A1A1E]/50">{t("step4_budget")}</span>
+            <span className="font-medium text-[#1A1A1E]">
+              {tier?.label} · {tier?.range}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[#1A1A1E]/50">{t("step4_deadline")}</span>
+            <span className="font-medium text-[#1A1A1E]">{order.deadline || t("step4_flexible")}</span>
+          </div>
+        </div>
+        <TicketDivider />
+        <div className="p-5">
+          {isCustom ? (
+            <p className="text-sm text-[#1A1A1E]/60">{t("step4_custom_note")}</p>
+          ) : (
+            <>
+              <div className="text-sm font-medium text-[#1A1A1E] mb-2">{t("step4_pay_method")}</div>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                {(
+                  [
+                    { id: "deposit", label: t("step4_pay_deposit"), sub: formatIDR(Math.round(base * 0.3)) },
+                    { id: "full", label: t("step4_pay_full"), sub: formatIDR(base) },
+                  ] as { id: PaymentPlan; label: string; sub: string }[]
+                ).map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => onChange({ ...order, plan: p.id })}
+                    className={`text-left p-3.5 rounded-lg border transition-colors ${
+                      order.plan === p.id ? "border-[#0038FF] bg-[#0038FF]/5" : "border-[#1A1A1E]/10 hover:border-[#1A1A1E]/30"
+                    }`}
+                  >
+                    <div className="text-sm font-medium text-[#1A1A1E]">{p.label}</div>
+                    <div className="text-xs font-mono text-[#1A1A1E]/50 mt-1">{p.sub}</div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="text-sm font-medium text-[#1A1A1E] mb-2">{t("step4_pay_with")}</div>
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                {(
+                  [
+                    { id: "qris", label: "QRIS", icon: QrCode },
+                    { id: "va", label: "Bank VA", icon: Landmark },
+                    { id: "card", label: "Kartu", icon: CreditCard },
+                  ] as { id: PaymentMethod; label: string; icon: LucideIcon }[]
+                ).map((m) => {
+                  const Icon = m.icon;
+                  const active = order.method === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => onChange({ ...order, method: m.id })}
+                      className={`flex flex-col items-center gap-1.5 py-3 rounded-lg border transition-colors ${
+                        active ? "border-[#0038FF] bg-[#0038FF]/5 text-[#0038FF]" : "border-[#1A1A1E]/10 text-[#1A1A1E]/60 hover:border-[#1A1A1E]/30"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="text-xs font-medium">{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <PaymentMethodPanel method={order.method} />
+
+              <div className="flex items-center justify-between border-t border-[#1A1A1E]/10 pt-4 mt-1">
+                <span className="text-sm text-[#1A1A1E]/50">{t("step4_total")}</span>
+                <span className="text-lg font-semibold text-[#1A1A1E] font-mono">{formatIDR(amount)}</span>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <button
+        onClick={onPay}
+        disabled={paying}
+        className="mt-6 w-full flex items-center justify-center gap-2 bg-[#0038FF] text-white py-3.5 rounded-lg font-medium hover:bg-[#0030DB] transition-colors disabled:opacity-60"
+      >
+        {paying ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" /> {t("step4_processing")}
+          </>
+        ) : isCustom ? (
+          <>
+            {t("step4_ask_quote")} <ArrowRight className="w-4 h-4" />
+          </>
+        ) : (
+          <>
+            <ShieldCheck className="w-4 h-4" /> {t("step4_confirm_pay")} {formatIDR(amount)}
+          </>
+        )}
+      </button>
+    </div>
+  );
+}
+
+function PaymentMethodPanel({ method }: { method: PaymentMethod }) {
+  if (method === "qris") {
+    return (
+      <div className="rounded-lg border border-[#1A1A1E]/10 p-5 flex flex-col items-center mb-5">
+        <div className="w-32 h-32 rounded-md bg-[#1A1A1E]/5 flex items-center justify-center mb-2">
+          <QrCode className="w-12 h-12 text-[#1A1A1E]/30" />
+        </div>
+        <p className="text-xs text-[#1A1A1E]/40 font-mono">Scan QRIS untuk bayar</p>
+      </div>
+    );
+  }
+  if (method === "va") {
+    return (
+      <div className="rounded-lg border border-[#1A1A1E]/10 p-5 mb-5">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-[#1A1A1E]/50">No. Virtual Account</span>
+          <span className="font-mono font-medium text-[#1A1A1E]">8808 1234 5678 90</span>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-lg border border-[#1A1A1E]/10 p-5 mb-5 space-y-3">
+      <input
+        placeholder="Nomor kartu"
+        className="w-full rounded-md border border-[#1A1A1E]/15 px-3 py-2.5 text-sm placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF]"
+      />
+      <div className="flex gap-3">
+        <input
+          placeholder="MM/YY"
+          className="w-1/2 rounded-md border border-[#1A1A1E]/15 px-3 py-2.5 text-sm placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF]"
+        />
+        <input
+          placeholder="CVC"
+          className="w-1/2 rounded-md border border-[#1A1A1E]/15 px-3 py-2.5 text-sm placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF]"
+        />
+      </div>
+    </div>
+  );
+}
+
+function OrderModal({
+  open,
+  onClose,
+  onSuccess,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: (data: SuccessData) => void;
+}) {
+  const { t } = useLang();
+  const budgetTiers = useBudgetTiers();
+  const services = useServices();
+  const [step, setStep] = useState(1);
+  const [service, setService] = useState<ServiceId | null>(null);
+  const [brief, setBrief] = useState<BriefData>({ scope: "", refs: "", files: [] });
+  const [budgetData, setBudgetData] = useState<BudgetData>({ budget: null, deadline: "" });
+  const [orderState, setOrderState] = useState<OrderState>({ plan: "deposit", method: "qris" });
+  const [paying, setPaying] = useState(false);
+
+  const canNext =
+    (step === 1 && service) ||
+    (step === 2 && brief.scope.trim().length > 0) ||
+    step === 3 && budgetData.budget ||
+    step === 4;
+
+  const handlePay = async () => {
+    setPaying(true);
+    await new Promise((r) => setTimeout(r, 1400));
+    setPaying(false);
+
+    const tier = budgetTiers.find((tItem) => tItem.id === budgetData.budget);
+    const isCustom = tier?.base == null;
+    const base = tier?.base ?? 0;
+    const amount = isCustom ? null : orderState.plan === "deposit" ? Math.round(base * 0.3) : base;
+    const code = generateOrderCode();
+    const serviceObj = services.find((s) => s.id === service);
+
+    const stored: StoredOrder = {
+      code,
+      createdAt: new Date().toISOString(),
+      service: serviceObj?.title ?? "",
+      budgetLabel: tier ? `${tier.label} · ${tier.range}` : "",
+      deadline: budgetData.deadline,
+      plan: orderState.plan,
+      method: orderState.method,
+      amount,
+      isCustom,
+      briefScope: brief.scope,
+      briefRefs: brief.refs,
+      fileNames: brief.files.map((f) => f.name),
+      status: "pending",
+    };
+    saveOrder(stored);
+
+    // Kirim notifikasi konfirmasi (email) — lihat /api/send-confirmation untuk detail integrasi.
+    fetch("/api/send-confirmation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(stored),
+    }).catch(() => {});
+
+    onSuccess({
+      code,
+      service: serviceObj?.title,
+      tier: tier?.label,
+      deadline: budgetData.deadline,
+      plan: orderState.plan,
+      method: orderState.method,
+      amount,
+      isCustom,
+    });
+    onClose();
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-[#1A1A1E]/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 40, opacity: 0 }}
+        transition={{ duration: 0.25 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[#F9F9FB] w-full sm:max-w-lg sm:rounded-xl rounded-t-2xl max-h-[92vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 sticky top-0 bg-[#F9F9FB] z-10 border-b border-[#1A1A1E]/10">
+          <StepDots step={step} />
+          <button onClick={onClose} aria-label={t("modal_close")}>
+            <X className="w-5 h-5 text-[#1A1A1E]/40 hover:text-[#1A1A1E]" />
+          </button>
+        </div>
+
+        <div className="px-6 py-6">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -12 }}
+              transition={{ duration: 0.2 }}
+            >
+              {step === 1 && <StepService value={service} onChange={setService} />}
+              {step === 2 && <StepBrief data={brief} onChange={setBrief} />}
+              {step === 3 && <StepBudget data={budgetData} onChange={setBudgetData} />}
+              {step === 4 && (
+                <StepCheckout
+                  order={{ service, budget: budgetData.budget, deadline: budgetData.deadline, ...orderState }}
+                  onChange={setOrderState}
+                  onPay={handlePay}
+                  paying={paying}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {step < 4 && (
+          <div className="flex items-center justify-between px-6 pb-6 pt-2">
+            <button
+              onClick={() => setStep((s) => Math.max(1, s - 1))}
+              disabled={step === 1}
+              className="flex items-center gap-1.5 text-sm font-medium text-[#1A1A1E]/60 disabled:opacity-0 hover:text-[#1A1A1E]"
+            >
+              <ArrowLeft className="w-4 h-4" /> {t("modal_back")}
+            </button>
+            <button
+              onClick={() => setStep((s) => Math.min(4, s + 1))}
+              disabled={!canNext}
+              className="flex items-center gap-2 bg-[#0038FF] text-white text-sm font-medium px-5 py-2.5 rounded-lg disabled:opacity-40 hover:bg-[#0030DB] transition-colors"
+            >
+              {t("modal_next")} <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function SuccessModal({ data, onClose }: { data: SuccessData | null; onClose: () => void }) {
+  const { t } = useLang();
+  const [copied, setCopied] = useState(false);
+  if (!data) return null;
+
+  const waMsg = `Halo Kookiez, aku baru order dengan kode ${data.code} (${data.service ?? "custom"}). Mau konfirmasi ya!`;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-[#1A1A1E]/40 backdrop-blur-sm flex items-center justify-center p-6"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-xl max-w-sm w-full p-7 text-center"
+      >
+        <div className="w-14 h-14 rounded-full bg-[#0038FF]/10 flex items-center justify-center mx-auto mb-4">
+          <CheckCircle2 className="w-7 h-7 text-[#0038FF]" />
+        </div>
+        <h3 className="font-heading text-xl font-semibold text-[#1A1A1E] mb-2">{t("success_title")}</h3>
+        <p className="text-sm text-[#1A1A1E]/50 mb-5">{t("success_desc")}</p>
+
+        <div className="rounded-lg border border-dashed border-[#0038FF]/40 bg-[#0038FF]/5 p-4 mb-5">
+          <div className="text-[10px] font-mono tracking-widest text-[#1A1A1E]/40 mb-1">
+            {t("success_code_label")}
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <span className="font-mono text-lg font-semibold text-[#0038FF] tracking-wider">{data.code}</span>
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(data.code);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              }}
+              aria-label="Copy"
+            >
+              <Copy className="w-3.5 h-3.5 text-[#1A1A1E]/40 hover:text-[#0038FF]" />
+            </button>
+          </div>
+          {copied && <div className="text-[10px] text-[#0038FF] mt-1 font-mono">Copied!</div>}
+        </div>
+
+        <div className="text-left space-y-1.5 text-sm mb-6">
+          <Row label={t("step4_service")} value={data.service} />
+          <Row label={t("step4_budget")} value={data.tier} />
+          <Row label={t("step4_deadline")} value={data.deadline || t("step4_flexible")} />
+          {!data.isCustom && data.amount != null && (
+            <Row label={t("step4_total")} value={formatIDR(data.amount)} />
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Link
+            href={`/lacak?code=${encodeURIComponent(data.code)}`}
+            className="w-full bg-[#1A1A1E] text-white py-3 rounded-lg font-medium text-sm hover:bg-[#1A1A1E]/85 transition-colors"
+          >
+            {t("success_track_btn")}
+          </Link>
+          <a
+            href={waLink(waMsg)}
+            target="_blank"
+            rel="noreferrer"
+            className="w-full border border-[#1A1A1E]/15 text-[#1A1A1E] py-3 rounded-lg font-medium text-sm hover:border-[#1A1A1E]/30 transition-colors flex items-center justify-center gap-2"
+          >
+            <MessageCircle className="w-4 h-4" style={{ color: "#25D366" }} /> {t("success_wa_btn")}
+          </a>
+          <button
+            onClick={onClose}
+            className="w-full text-[#1A1A1E]/50 py-2 rounded-lg font-medium text-sm hover:text-[#1A1A1E] transition-colors"
+          >
+            {t("success_close")}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function LoginPromptModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-[#1A1A1E]/40 backdrop-blur-sm flex items-center justify-center p-6"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-xl max-w-sm w-full p-7 text-center"
+          >
+            <div className="w-14 h-14 rounded-full bg-[#0038FF]/10 flex items-center justify-center mx-auto mb-4">
+              <Mail className="w-7 h-7 text-[#0038FF]" />
+            </div>
+            <h3 className="font-heading text-xl font-semibold text-[#1A1A1E] mb-2">Masuk dulu, yuk</h3>
+            <p className="text-sm text-[#1A1A1E]/50 mb-6">
+              Kamu perlu masuk dengan akun Gmail untuk bisa pesan sekarang.
+            </p>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => signIn("google", { callbackUrl: "/" })}
+                className="w-full flex items-center justify-center gap-2 bg-[#0038FF] text-white py-3 rounded-lg font-medium text-sm hover:bg-[#0030DB] transition-colors"
+              >
+                Masuk dengan Google
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full text-[#1A1A1E]/50 py-2 rounded-lg font-medium text-sm hover:text-[#1A1A1E] transition-colors"
+              >
+                Batal
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function Row({ label, value }: { label: string; value?: string }) {
+  if (!value) return null;
+  return (
+    <div className="flex justify-between">
+      <span className="text-[#1A1A1E]/45">{label}</span>
+      <span className="font-medium text-[#1A1A1E]">{value}</span>
+    </div>
+  );
+}
+
+function FloatingWhatsApp() {
+  const { lang } = useLang();
+  const msg = lang === "id" ? "Halo Kookiez, aku mau tanya-tanya soal jasa desain 👋" : "Hi Kookiez, I'd like to ask about your design services 👋";
+  return (
+    <a
+      href={waLink(msg)}
+      target="_blank"
+      rel="noreferrer"
+      className="fixed bottom-5 right-5 z-40 flex items-center gap-2 bg-[#1A1A1E] text-white px-4 py-3 rounded-full shadow-lg hover:bg-[#1A1A1E]/90 transition-colors"
+    >
+      <MessageCircle className="w-4 h-4" style={{ color: "#25D366" }} />
+      <span className="text-sm font-medium hidden sm:inline">Chat CS</span>
+    </a>
+  );
+}
+
+function Navbar({ onOrder, refs }: { onOrder: () => void; refs: NavRefs }) {
+  const { t } = useLang();
+  const { data: session, status } = useSession();
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const go = (ref: RefObject<HTMLElement | HTMLDivElement>) => {
+    ref.current?.scrollIntoView({ behavior: "smooth" });
+    setOpen(false);
+  };
+
+  return (
+    <header
+      className={`sticky top-0 z-30 transition-colors ${
+        scrolled ? "bg-[#F9F9FB]/90 backdrop-blur border-b border-[#1A1A1E]/10" : "bg-transparent"
+      }`}
+    >
+      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        <button onClick={() => go(refs.home)} className="font-heading font-semibold text-lg text-[#1A1A1E]">
+          kookiez<span className="text-[#0038FF]">.</span>
+        </button>
+
+        <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-[#1A1A1E]/70">
+          <button onClick={() => go(refs.home)} className="hover:text-[#1A1A1E] transition-colors">
+            {t("nav_home")}
+          </button>
+          <button onClick={() => go(refs.work)} className="hover:text-[#1A1A1E] transition-colors">
+            {t("nav_work")}
+          </button>
+          <Link href="/estimasi-harga" className="hover:text-[#1A1A1E] transition-colors">
+            {t("nav_price")}
+          </Link>
+          <button onClick={() => go(refs.terms)} className="hover:text-[#1A1A1E] transition-colors">
+            {t("nav_terms")}
+          </button>
+          <Link href="/lacak" className="hover:text-[#1A1A1E] transition-colors">
+            {t("nav_track")}
+          </Link>
+        </nav>
+
+        <div className="hidden md:flex items-center gap-3">
+          {status === "authenticated" && (
+            <div className="flex items-center gap-2 pr-1">
+              <div className="w-7 h-7 rounded-full bg-[#0038FF]/10 text-[#0038FF] text-xs font-semibold flex items-center justify-center shrink-0">
+                {(session?.user?.name ?? session?.user?.email ?? "?").charAt(0).toUpperCase()}
+              </div>
+              <span className="text-xs text-[#1A1A1E]/60 max-w-[110px] truncate hidden lg:inline">
+                {session?.user?.name ?? session?.user?.email}
+              </span>
+              <button
+                onClick={() => signOut({ callbackUrl: "/" })}
+                aria-label="Keluar"
+                title="Keluar"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-[#1A1A1E]/50 hover:text-[#1A1A1E] hover:bg-[#1A1A1E]/5 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          <LangToggle />
+          <button
+            onClick={onOrder}
+            className="bg-[#0038FF] text-white font-medium px-4 py-2 rounded-lg text-sm hover:bg-[#0030DB] transition-colors"
+          >
+            {t("nav_order")}
+          </button>
+        </div>
+
+        <div className="md:hidden flex items-center gap-2">
+          <LangToggle />
+          <button onClick={() => setOpen((v) => !v)} aria-label="Menu">
+            {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="md:hidden overflow-hidden border-t border-[#1A1A1E]/10 bg-[#F9F9FB]"
+          >
+            <div className="px-6 py-5 flex flex-col gap-4 text-sm font-medium text-[#1A1A1E]/80">
+              {status === "authenticated" && (
+                <div className="flex items-center justify-between gap-3 pb-3 border-b border-[#1A1A1E]/10">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-[#0038FF]/10 text-[#0038FF] text-xs font-semibold flex items-center justify-center shrink-0">
+                      {(session?.user?.name ?? session?.user?.email ?? "?").charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-xs text-[#1A1A1E]/60 truncate">
+                      {session?.user?.name ?? session?.user?.email}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                    className="flex items-center gap-1.5 text-xs text-[#1A1A1E]/50 hover:text-[#1A1A1E] transition-colors shrink-0"
+                  >
+                    <LogOut className="w-3.5 h-3.5" /> Keluar
+                  </button>
+                </div>
+              )}
+              <button onClick={() => go(refs.home)} className="text-left">
+                {t("nav_home")}
+              </button>
+              <button onClick={() => go(refs.work)} className="text-left">
+                {t("nav_work")}
+              </button>
+              <Link href="/estimasi-harga" className="text-left" onClick={() => setOpen(false)}>
+                {t("nav_price")}
+              </Link>
+              <button onClick={() => go(refs.terms)} className="text-left">
+                {t("nav_terms")}
+              </button>
+              <Link href="/lacak" className="text-left">
+                {t("nav_track")}
+              </Link>
+              <a href={waLink("Halo Kookiez, aku mau tanya-tanya soal jasa desain")} target="_blank" rel="noreferrer">
+                {t("nav_cs")}
+              </a>
+              <button
+                onClick={() => {
+                  onOrder();
+                  setOpen(false);
+                }}
+                className="bg-[#0038FF] text-white font-medium px-4 py-2 rounded-lg text-sm hover:bg-[#0030DB] transition-colors w-fit"
+              >
+                {t("nav_order")}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </header>
+  );
+}
+
+function Hero({ onOrder, workRef }: { onOrder: () => void; workRef: RefObject<HTMLElement> }) {
+  const { t, lang } = useLang();
+  const words = lang === "id" ? ["logo.", "banner.", "poster.", "stiker."] : ["logo.", "banner.", "poster.", "stickers."];
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setI((v) => (v + 1) % words.length), 1800);
+    return () => clearInterval(id);
+  }, [words.length]);
+
+  return (
+    <section className="max-w-6xl mx-auto px-6 pt-20 pb-16 sm:pt-28 sm:pb-20">
+      <p className="font-mono text-xs tracking-widest text-[#0038FF] mb-5">{t("hero_kicker")}</p>
+      <h1 className="font-heading text-4xl sm:text-6xl font-semibold tracking-tight text-[#1A1A1E] max-w-3xl leading-[1.05]">
+        {t("hero_need")}{" "}
+        <span className="inline-block relative h-[1em] align-bottom overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={words[i]}
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -24, opacity: 0 }}
+              transition={{ duration: 0.35 }}
+              className="text-[#0038FF] inline-block"
+            >
+              {words[i]}
+            </motion.span>
+          </AnimatePresence>
+        </span>
+        <br />
+        {t("hero_title_end")}
+      </h1>
+      <p className="text-base sm:text-lg text-[#1A1A1E]/55 max-w-xl mt-6 leading-relaxed">{t("hero_desc")}</p>
+      <div className="flex flex-wrap items-center gap-4 mt-9">
+        <button
+          onClick={onOrder}
+          className="flex items-center gap-2 bg-[#0038FF] text-white font-medium px-6 py-3.5 rounded-lg hover:bg-[#0030DB] transition-colors"
+        >
+          {t("hero_cta")} <ArrowRight className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => workRef.current?.scrollIntoView({ behavior: "smooth" })}
+          className="text-[#1A1A1E]/70 font-medium px-2 py-3.5 hover:text-[#1A1A1E] transition-colors"
+        >
+          {t("hero_cta_secondary")}
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-12 pt-8 border-t border-[#1A1A1E]/10 text-sm">
+        <div>
+          <span className="font-mono font-medium text-[#1A1A1E]">300+</span>{" "}
+          <span className="text-[#1A1A1E]/50">{t("hero_stat_done")}</span>
+        </div>
+        <div>
+          <span className="font-mono font-medium text-[#1A1A1E]">4.9/5</span>{" "}
+          <span className="text-[#1A1A1E]/50">{t("hero_stat_rating")}</span>
+        </div>
+        <div>
+          <span className="font-mono font-medium text-[#1A1A1E]">&lt;1 jam</span>{" "}
+          <span className="text-[#1A1A1E]/50">{t("hero_stat_response")}</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WorkLightbox({ item, onClose }: { item: WorkItem | null; onClose: () => void }) {
+  const { t } = useLang();
+  if (!item) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-[#1A1A1E]/60 backdrop-blur-sm flex items-center justify-center p-6"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-xl max-w-lg w-full overflow-hidden"
+      >
+        <div className="h-64 relative" style={{ backgroundColor: item.hue }}>
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
+          >
+            <X className="w-4 h-4 text-white" />
+          </button>
+          <span className="absolute bottom-4 left-5 font-mono text-xs text-white/70">
+            #{String(item.id).padStart(3, "0")}
+          </span>
+        </div>
+        <div className="p-6">
+          <span className="font-mono text-[10px] tracking-widest text-[#0038FF]">{item.tag.toUpperCase()}</span>
+          <h3 className="font-heading text-xl font-semibold text-[#1A1A1E] mt-2">{item.title}</h3>
+          <p className="text-sm text-[#1A1A1E]/50 mt-2 leading-relaxed">
+            {/* Placeholder — ganti dengan gambar hasil desain asli & deskripsi proyek nyata */}
+            Contoh hasil pengerjaan untuk kategori {item.tag}. Gambar sebenarnya bisa ditambahkan di sini.
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function WorkSection({ refProp, onOrder }: { refProp: RefObject<HTMLElement>; onOrder: () => void }) {
+  const { t } = useLang();
+  const work = useWork();
+  const services = useServices();
+  const [filter, setFilter] = useState<ServiceId | "all">("all");
+  const [active, setActive] = useState<WorkItem | null>(null);
+
+  const filtered = filter === "all" ? work : work.filter((w) => w.category === filter);
+
+  return (
+    <section ref={refProp} className="max-w-6xl mx-auto px-6 py-20 border-t border-[#1A1A1E]/10">
+      <div className="flex items-end justify-between mb-8 flex-wrap gap-4">
+        <div>
+          <p className="font-mono text-xs tracking-widest text-[#0038FF] mb-2">{t("work_kicker")}</p>
+          <h2 className="font-heading text-3xl font-semibold text-[#1A1A1E] tracking-tight">{t("work_title")}</h2>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-8">
+        <button
+          onClick={() => setFilter("all")}
+          className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
+            filter === "all" ? "border-[#0038FF] text-[#0038FF] bg-[#0038FF]/5" : "border-[#1A1A1E]/15 text-[#1A1A1E]/60 hover:border-[#1A1A1E]/30"
+          }`}
+        >
+          {t("work_filter_all")}
+        </button>
+        {services.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setFilter(s.id)}
+            className={`text-xs font-mono px-3 py-1.5 rounded-full border transition-colors ${
+              filter === s.id ? "border-[#0038FF] text-[#0038FF] bg-[#0038FF]/5" : "border-[#1A1A1E]/15 text-[#1A1A1E]/60 hover:border-[#1A1A1E]/30"
+            }`}
+          >
+            {s.title}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {filtered.map((w) => (
+          <button
+            key={w.id}
+            onClick={() => setActive(w)}
+            className="group text-left rounded-lg border border-[#1A1A1E]/10 overflow-hidden hover:border-[#1A1A1E]/25 transition-colors"
+          >
+            <div className="h-40 relative overflow-hidden" style={{ backgroundColor: w.hue }}>
+              <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors flex items-center justify-center">
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-mono text-white bg-black/30 px-2.5 py-1 rounded-full">
+                  {t("work_view")}
+                </span>
+              </div>
+              <span className="absolute bottom-3 left-4 font-mono text-[11px] text-white/70">
+                #{String(w.id).padStart(3, "0")}
+              </span>
+              <span className="absolute top-3 right-3 font-mono text-[10px] text-white/80 border border-dashed border-white/30 rounded-full px-2 py-1 rotate-3">
+                {w.tag}
+              </span>
+            </div>
+            <div className="p-4">
+              <span className="font-medium text-[#1A1A1E] text-sm">{w.title}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence>{active && <WorkLightbox item={active} onClose={() => setActive(null)} />}</AnimatePresence>
+    </section>
+  );
+}
+
+function TermsSection({ refProp }: { refProp: RefObject<HTMLElement> }) {
+  const { t } = useLang();
+  const terms = useTerms();
+  return (
+    <section ref={refProp} className="max-w-3xl mx-auto px-6 py-20 border-t border-[#1A1A1E]/10">
+      <p className="font-mono text-xs tracking-widest text-[#0038FF] mb-2">{t("terms_kicker")}</p>
+      <h2 className="font-heading text-3xl font-semibold text-[#1A1A1E] tracking-tight mb-10">{t("terms_title")}</h2>
+      <Accordion items={terms} />
+    </section>
+  );
+}
+
+function Footer({ onOrder }: { onOrder: () => void }) {
+  const { t } = useLang();
+  return (
+    <footer className="border-t border-[#1A1A1E]/10">
+      <div className="max-w-6xl mx-auto px-6 py-14 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        <div>
+          <span className="font-heading font-semibold text-lg text-[#1A1A1E]">
+            kookiez<span className="text-[#0038FF]">.</span>
+          </span>
+          <p className="text-sm text-[#1A1A1E]/45 mt-1">{t("footer_tagline")}</p>
+          <div className="flex items-center gap-4 mt-4">
+            <a
+              href="https://instagram.com/kookiez.id"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Instagram"
+              className="flex items-center gap-1.5 text-xs text-[#1A1A1E]/45 hover:text-[#0038FF] transition-colors"
+            >
+              <Instagram className="w-4 h-4" /> @kookiez.id
+            </a>
+            <a
+              href="mailto:hello@kookiez.id"
+              aria-label="Email"
+              className="flex items-center gap-1.5 text-xs text-[#1A1A1E]/45 hover:text-[#0038FF] transition-colors"
+            >
+              <Mail className="w-4 h-4" /> hello@kookiez.id
+            </a>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <a
+            href={waLink("Halo Kookiez, aku mau tanya-tanya soal jasa desain")}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 border border-[#1A1A1E]/15 text-[#1A1A1E] font-medium px-5 py-3 rounded-lg hover:border-[#1A1A1E]/30 transition-colors"
+          >
+            <MessageCircle className="w-4 h-4" style={{ color: "#25D366" }} /> {t("nav_cs")}
+          </a>
+          <button
+            onClick={onOrder}
+            className="flex items-center gap-2 bg-[#1A1A1E] text-white font-medium px-5 py-3 rounded-lg hover:bg-[#1A1A1E]/85 transition-colors"
+          >
+            {t("nav_order")} <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      <div className="max-w-6xl mx-auto px-6 pb-8 text-xs text-[#1A1A1E]/35 font-mono">
+        <span>© {new Date().getFullYear()} Kookiez Digital Creative</span>
+      </div>
+    </footer>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Root — default export untuk app/page.tsx                          */
+/* ------------------------------------------------------------------ */
+
+export default function Page() {
+  const { status } = useSession();
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
+  const [successData, setSuccessData] = useState<SuccessData | null>(null);
+
+  const home = useRef<HTMLDivElement>(null);
+  const work = useRef<HTMLElement>(null);
+  const terms = useRef<HTMLElement>(null);
+
+  const handleOrder = () => {
+    if (status === "authenticated") {
+      setOrderOpen(true);
+    } else {
+      setLoginPromptOpen(true);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F9F9FB] text-[#1A1A1E]" style={{ fontFamily: "Inter, ui-sans-serif, system-ui" }}>
+      <Navbar onOrder={handleOrder} refs={{ home, work, terms }} />
+      <div ref={home}>
+        <Hero onOrder={handleOrder} workRef={work} />
+      </div>
+      <WorkSection refProp={work} onOrder={handleOrder} />
+      <TermsSection refProp={terms} />
+      <Footer onOrder={handleOrder} />
+
+      <FloatingWhatsApp />
+
+      <AnimatePresence>
+        {orderOpen && (
+          <OrderModal open={orderOpen} onClose={() => setOrderOpen(false)} onSuccess={(data) => setSuccessData(data)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>{successData && <SuccessModal data={successData} onClose={() => setSuccessData(null)} />}</AnimatePresence>
+
+      <LoginPromptModal open={loginPromptOpen} onClose={() => setLoginPromptOpen(false)} />
+    </div>
+  );
+}
