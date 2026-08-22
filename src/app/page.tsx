@@ -11,12 +11,15 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSession, signIn, signOut } from "next-auth/react";
 import {
-  useLang, useServices, useBudgetTiers, useWork, useTerms,
+  useLang, useServices, useBudgetTiers, useWork, useTerms, useTestimonials,
   type ServiceId, type BudgetId, type ServiceItem, type BudgetTier, type WorkItem, type TermItem,
 } from "@/lib/i18n";
-import { saveOrder, generateOrderCode, type StoredOrder } from "@/lib/orders";
+import { clearOrderDraft, getOrderDraft, saveOrder, saveOrderDraft, generateOrderCode, type StoredOrder } from "@/lib/orders";
+import { getSiteSettings, SITE_SETTINGS_UPDATED_EVENT, type SiteSettings } from "@/lib/site-settings";
+import { getCustomWorkItems, getHiddenDefaultIds, PORTFOLIO_UPDATED_EVENT, type CustomWorkItem } from "@/lib/portfolio";
 
 /* ------------------------------------------------------------------ */
 /*  Konfigurasi CS WhatsApp — ganti nomor & pesan default di sini      */
@@ -230,6 +233,7 @@ function StepBrief({
   onChange: (updater: BriefData | ((prev: BriefData) => BriefData)) => void;
 }) {
   const { t } = useLang();
+  const { data: session } = useSession();
   const [dragActive, setDragActive] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -581,6 +585,18 @@ function OrderModal({
   const [orderState, setOrderState] = useState<OrderState>({ plan: "deposit", method: "qris" });
   const [paying, setPaying] = useState(false);
 
+  useEffect(() => {
+    const draft = getOrderDraft();
+    if (!draft) return;
+    setService(draft.service as ServiceId | null);
+    setBrief({ ...draft.brief, files: [] });
+    setBudgetData({ budget: draft.budget as BudgetId | null, deadline: draft.deadline });
+  }, []);
+
+  useEffect(() => {
+    saveOrderDraft({ service, brief: { scope: brief.scope, refs: brief.refs }, budget: budgetData.budget, deadline: budgetData.deadline, updatedAt: new Date().toISOString() });
+  }, [service, brief.scope, brief.refs, budgetData.budget, budgetData.deadline]);
+
   const canNext =
     (step === 1 && service) ||
     (step === 2 && brief.scope.trim().length > 0) ||
@@ -613,8 +629,10 @@ function OrderModal({
       briefRefs: brief.refs,
       fileNames: brief.files.map((f) => f.name),
       status: "pending",
+      customerEmail: session?.user?.email,
     };
     saveOrder(stored);
+    clearOrderDraft();
 
     // Kirim notifikasi konfirmasi (email) — lihat /api/send-confirmation untuk detail integrasi.
     fetch("/api/send-confirmation", {
@@ -863,17 +881,10 @@ function FloatingWhatsApp() {
   );
 }
 
-function Navbar({ onOrder, refs }: { onOrder: () => void; refs: NavRefs }) {
+function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: () => void; refs: NavRefs }) {
   const { t } = useLang();
   const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const go = (ref: RefObject<HTMLElement | HTMLDivElement>) => {
     ref.current?.scrollIntoView({ behavior: "smooth" });
@@ -881,11 +892,7 @@ function Navbar({ onOrder, refs }: { onOrder: () => void; refs: NavRefs }) {
   };
 
   return (
-    <header
-      className={`sticky top-0 z-30 transition-colors ${
-        scrolled ? "bg-[#F9F9FB]/90 backdrop-blur border-b border-[#1A1A1E]/10" : "bg-transparent"
-      }`}
-    >
+    <header className="fixed inset-x-0 top-0 z-40 border-b border-[#1A1A1E]/10 bg-[#F9F9FB]/95 backdrop-blur">
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <button onClick={() => go(refs.home)} className="font-heading font-semibold text-lg text-[#1A1A1E]">
           kookiez<span className="text-[#0038FF]">.</span>
@@ -929,6 +936,11 @@ function Navbar({ onOrder, refs }: { onOrder: () => void; refs: NavRefs }) {
             </div>
           )}
           <LangToggle />
+          {session?.user?.role === "admin" && (
+            <Link href="/admin" className="border border-[#1A1A1E]/15 px-3 py-2 rounded-md text-xs font-medium text-[#1A1A1E]/70 hover:text-[#1A1A1E] hover:border-[#1A1A1E]/35 transition-colors">
+              Admin
+            </Link>
+          )}
           <button
             onClick={onOrder}
             className="bg-[#0038FF] text-white font-medium px-4 py-2 rounded-lg text-sm hover:bg-[#0030DB] transition-colors"
@@ -990,6 +1002,12 @@ function Navbar({ onOrder, refs }: { onOrder: () => void; refs: NavRefs }) {
               <a href={waLink("Halo Kookiez, aku mau tanya-tanya soal jasa desain")} target="_blank" rel="noreferrer">
                 {t("nav_cs")}
               </a>
+              {session?.user?.role === "admin" && (
+                <Link href="/admin" onClick={() => setOpen(false)} className="text-left">Admin</Link>
+              )}
+              <button onClick={() => { onConsult(); setOpen(false); }} className="text-left text-[#0038FF]">
+                {t("hero_consult_cta")}
+              </button>
               <button
                 onClick={() => {
                   onOrder();
@@ -1007,7 +1025,7 @@ function Navbar({ onOrder, refs }: { onOrder: () => void; refs: NavRefs }) {
   );
 }
 
-function Hero({ onOrder, workRef }: { onOrder: () => void; workRef: RefObject<HTMLElement> }) {
+function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult: () => void; workRef: RefObject<HTMLElement> }) {
   const { t, lang } = useLang();
   const words = lang === "id" ? ["logo.", "banner.", "poster.", "stiker."] : ["logo.", "banner.", "poster.", "stickers."];
   const [i, setI] = useState(0);
@@ -1017,9 +1035,11 @@ function Hero({ onOrder, workRef }: { onOrder: () => void; workRef: RefObject<HT
   }, [words.length]);
 
   return (
-    <section className="max-w-6xl mx-auto px-6 pt-20 pb-16 sm:pt-28 sm:pb-20">
+    <section className="max-w-6xl mx-auto px-6 pt-14 pb-16 sm:pt-20 sm:pb-24">
+      <div className="grid lg:grid-cols-[1.1fr_.9fr] gap-12 lg:gap-8 items-center">
+      <div>
       <p className="font-mono text-xs tracking-widest text-[#0038FF] mb-5">{t("hero_kicker")}</p>
-      <h1 className="font-heading text-4xl sm:text-6xl font-semibold tracking-tight text-[#1A1A1E] max-w-3xl leading-[1.05]">
+      <h1 className="font-heading text-5xl sm:text-7xl text-[#1A1A1E] max-w-3xl leading-[.9] tracking-[-0.035em]">
         {t("hero_need")}{" "}
         <span className="inline-block relative h-[1em] align-bottom overflow-hidden">
           <AnimatePresence mode="wait">
@@ -1047,6 +1067,12 @@ function Hero({ onOrder, workRef }: { onOrder: () => void; workRef: RefObject<HT
           {t("hero_cta")} <ArrowRight className="w-4 h-4" />
         </button>
         <button
+          onClick={onConsult}
+          className="border border-[#1A1A1E]/20 text-[#1A1A1E] font-medium px-5 py-3.5 rounded-md hover:border-[#1A1A1E]/45 transition-colors"
+        >
+          {t("hero_consult_cta")}
+        </button>
+        <button
           onClick={() => workRef.current?.scrollIntoView({ behavior: "smooth" })}
           className="text-[#1A1A1E]/70 font-medium px-2 py-3.5 hover:text-[#1A1A1E] transition-colors"
         >
@@ -1068,19 +1094,88 @@ function Hero({ onOrder, workRef }: { onOrder: () => void; workRef: RefObject<HT
           <span className="text-[#1A1A1E]/50">{t("hero_stat_response")}</span>
         </div>
       </div>
+      </div>
+
+      <div className="hero-art min-h-[330px] sm:min-h-[420px] flex items-center justify-center" aria-label="Objek tiga dimensi identitas Kookiez">
+        <div className="hero-float brand-stage" aria-hidden="true">
+          <div className="brand-orbit brand-orbit--one" />
+          <div className="brand-orbit brand-orbit--two" />
+          <div className="brand-card brand-card--back" />
+          <div className="brand-card brand-card--main flex flex-col justify-between p-5">
+            <span className="text-[10px] font-semibold tracking-[.16em] text-[#1F6C9F]">KOOKIEZ / 26</span>
+            <div className="relative h-20 w-full">
+             {/* Dari w-48 h-16 (192px x 64px) ke w-64 h-24 (256px x 96px) */}
+<div className="relative w-64 h-24 bg-[#0038FF] [mask-image:url(/Kookiez.webp)] [mask-size:contain] [mask-repeat:no-repeat] [mask-position:left]"></div>
+            </div>
+            <span className="text-[11px] leading-snug text-[#1A1A1E]/55">Design with a point of view.</span>
+          </div>
+          <div className="brand-tile flex items-center justify-center text-[10px] font-semibold tracking-[.16em] text-[#956400]">DKV</div>
+        </div>
+      </div>
+      </div>
     </section>
   );
 }
 
-function WorkLightbox({ item, onClose }: { item: WorkItem | null; onClose: () => void }) {
+function AvailabilityBanner() {
+  const [settings, setSettings] = useState<SiteSettings>({ availability: "available", note: "Menerima proyek baru minggu ini." });
+  useEffect(() => {
+    const sync = () => setSettings(getSiteSettings());
+    sync();
+    window.addEventListener(SITE_SETTINGS_UPDATED_EVENT, sync);
+    return () => window.removeEventListener(SITE_SETTINGS_UPDATED_EVENT, sync);
+  }, []);
+  const label = settings.availability === "available" ? "Slot tersedia" : settings.availability === "limited" ? "Slot terbatas" : "Antrean penuh";
+  const tone = settings.availability === "available" ? "bg-[#EDF3EC] text-[#346538]" : settings.availability === "limited" ? "bg-[#FBF3DB] text-[#956400]" : "bg-[#FDEBEC] text-[#9F2F2D]";
+  return <section className="max-w-6xl mx-auto px-6 pb-8"><div className="border border-[#1A1A1E]/10 bg-white rounded-lg px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2"><span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone}`}>{label}</span><p className="text-sm text-[#1A1A1E]/60">{settings.note}</p></div></section>;
+}
+
+function ServicePackages({ onOrder, onConsult }: { onOrder: () => void; onConsult: () => void }) {
+  const services = useServices();
+  return <section className="max-w-6xl mx-auto px-6 -mt-6 pb-20"><div className="max-w-xl mb-10"><p className="font-mono text-xs tracking-widest text-[#0038FF] mb-2">LAYANAN</p><h2 className="font-heading text-4xl tracking-tight">Pilih paket yang pas.</h2><p className="text-sm leading-relaxed text-[#1A1A1E]/55 mt-3">Harga awal transparan, ruang lingkup jelas, dan konsultasi bisa dipisahkan dari pesanan.</p></div><div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">{services.map((service, index) => { const Icon = service.icon; const consult = service.id === "konsultasi"; return <motion.article key={service.id} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .25 }} transition={{ delay: index * .06, duration: .45 }} className="border border-[#1A1A1E]/10 bg-white rounded-lg p-6 flex flex-col min-h-56"><Icon className="w-5 h-5 text-[#0038FF]" /><h3 className="font-semibold mt-8">{service.title}</h3><p className="text-sm leading-relaxed text-[#1A1A1E]/55 mt-2">{service.desc}</p><p className="font-mono text-xs text-[#1A1A1E]/45 mt-5">{consult ? "Mulai dari diskusi singkat" : "Mulai dari Rp 25.000"}</p><button onClick={consult ? onConsult : onOrder} className="mt-auto pt-5 text-left text-sm font-semibold text-[#0038FF]">{consult ? "Atur konsultasi" : "Pesan layanan"}</button></motion.article>; })}</div></section>;
+}
+
+function TestimonialsSection() {
+  const testimonials = useTestimonials();
+  const projectLabels = ["Logo Warung Kopi Aksara", "Banner Bazar Sekolah", "Flyer Promo Toko Klarin", "Brosur Company Profile Maju Jaya"];
+  return <section className="max-w-6xl mx-auto px-6 py-20 border-t border-[#1A1A1E]/10"><div className="max-w-xl mb-10"><p className="font-mono text-xs tracking-widest text-[#0038FF] mb-2">PENGALAMAN KLIEN</p><h2 className="font-heading text-4xl tracking-tight">Karya yang terasa selesai.</h2></div><div className="grid md:grid-cols-2 gap-px border border-[#1A1A1E]/10 bg-[#1A1A1E]/10">{testimonials.map((item, index) => <article key={item.name} className="bg-[#F9F9FB] p-6 sm:p-8"><p className="text-base leading-relaxed text-[#1A1A1E]">“{item.text}”</p><div className="mt-7 flex items-end justify-between gap-4"><div><p className="text-sm font-semibold">{item.name}</p><p className="text-xs text-[#1A1A1E]/50 mt-1">{item.role}</p></div><span className="text-[11px] text-[#0038FF] text-right">{projectLabels[index]}</span></div></article>)}</div></section>;
+}
+
+function ConsultationModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { lang } = useLang();
+  const [name, setName] = useState("");
+  const [need, setNeed] = useState("");
+  const submit = () => {
+    if (!name.trim() || !need.trim()) return;
+    const intro = lang === "id" ? "Halo Kookiez, saya ingin konsultasi desain." : "Hi Kookiez, I'd like a design consultation.";
+    window.open(waLink(`${intro}\n\nNama: ${name}\nKebutuhan: ${need}`), "_blank", "noopener,noreferrer");
+    onClose();
+  };
+  return (
+    <AnimatePresence>
+      {open && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-50 bg-[#1A1A1E]/40 backdrop-blur-sm flex items-center justify-center p-6">
+        <motion.div initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 18, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-[#FBFBFA] border border-[#1A1A1E]/10 rounded-xl max-w-md w-full p-7">
+          <div className="flex justify-between items-start gap-4 mb-5"><div><p className="font-mono text-[10px] tracking-widest text-[#0038FF]">KONSULTASI DESAIN</p><h2 className="font-heading text-3xl leading-none mt-2">Cari arah sebelum mulai.</h2></div><button onClick={onClose} aria-label="Tutup"><X className="w-5 h-5 text-[#1A1A1E]/45" /></button></div>
+          <p className="text-sm leading-relaxed text-[#1A1A1E]/55 mb-5">Form ini hanya untuk diskusi awal. Tidak membuat pesanan atau pembayaran.</p>
+          <label className="block text-sm font-medium mb-2">Nama kamu</label><input value={name} onChange={(e) => setName(e.target.value)} className="w-full border border-[#1A1A1E]/15 bg-white rounded-md px-3 py-3 text-sm focus:outline-none focus:border-[#0038FF]" placeholder="Nama panggilan" />
+          <label className="block text-sm font-medium mt-4 mb-2">Yang ingin dibahas</label><textarea value={need} onChange={(e) => setNeed(e.target.value)} rows={4} className="w-full border border-[#1A1A1E]/15 bg-white rounded-md px-3 py-3 text-sm resize-none focus:outline-none focus:border-[#0038FF]" placeholder="Contoh: perlu logo untuk usaha kopi, belum yakin gaya dan warna." />
+          <button disabled={!name.trim() || !need.trim()} onClick={submit} className="mt-5 w-full bg-[#1A1A1E] text-white rounded-md py-3 text-sm font-medium disabled:opacity-40">Mulai konsultasi via WhatsApp</button>
+        </motion.div>
+      </motion.div>}
+    </AnimatePresence>
+  );
+}
+
+function WorkLightbox({ item, onClose }: { item: DisplayWorkItem | null; onClose: () => void }) {
   const { t } = useLang();
   if (!item) return null;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-[#1A1A1E]/60 backdrop-blur-sm flex items-center justify-center p-6"
+      className="fixed inset-0 z-50 bg-[#1A1A1E]/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
       onClick={onClose}
     >
       <motion.div
@@ -1088,25 +1183,47 @@ function WorkLightbox({ item, onClose }: { item: WorkItem | null; onClose: () =>
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl max-w-lg w-full overflow-hidden"
+        className="bg-white rounded-xl max-w-2xl w-full overflow-hidden max-h-[90vh] flex flex-col"
       >
-        <div className="h-64 relative" style={{ backgroundColor: item.hue }}>
+        {/* Container Gambar (Size Asli & Uncropped) */}
+        <div 
+          className="relative w-full bg-[#1A1A1E]/5 flex items-center justify-center overflow-hidden shrink-0"
+          style={{ backgroundColor: item.hue }}
+        >
+          {item.image ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={item.image}
+              alt={item.title}
+              className="w-full h-auto max-h-[65vh] object-contain block"
+            />
+          ) : (
+            <div className="h-64 w-full flex items-center justify-center text-xs font-mono text-[#1A1A1E]/40">
+              [ Tanpa Gambar ]
+            </div>
+          )}
+
+          {/* Tombol Close */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
+            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-colors z-10 backdrop-blur-sm"
+            aria-label="Tutup"
           >
-            <X className="w-4 h-4 text-white" />
+            <X className="w-4 h-4" />
           </button>
-          <span className="absolute bottom-4 left-5 font-mono text-xs text-white/70">
-            #{String(item.id).padStart(3, "0")}
+
+          {/* Badge ID */}
+          <span className="absolute bottom-3 left-4 font-mono text-xs text-white bg-black/50 px-2.5 py-1 rounded-md backdrop-blur-sm z-10">
+            #{typeof item.id === "number" ? String(item.id).padStart(3, "0") : "CUSTOM"}
           </span>
         </div>
-        <div className="p-6">
+
+        {/* Deskripsi */}
+        <div className="p-6 overflow-y-auto">
           <span className="font-mono text-[10px] tracking-widest text-[#0038FF]">{item.tag.toUpperCase()}</span>
-          <h3 className="font-heading text-xl font-semibold text-[#1A1A1E] mt-2">{item.title}</h3>
-          <p className="text-sm text-[#1A1A1E]/50 mt-2 leading-relaxed">
-            {/* Placeholder — ganti dengan gambar hasil desain asli & deskripsi proyek nyata */}
-            Contoh hasil pengerjaan untuk kategori {item.tag}. Gambar sebenarnya bisa ditambahkan di sini.
+          <h3 className="font-heading text-xl font-semibold text-[#1A1A1E] mt-1">{item.title}</h3>
+          <p className="text-sm text-[#1A1A1E]/60 mt-2 leading-relaxed">
+            {item.description || `Contoh hasil pengerjaan untuk kategori ${item.tag}.`}
           </p>
         </div>
       </motion.div>
@@ -1116,10 +1233,21 @@ function WorkLightbox({ item, onClose }: { item: WorkItem | null; onClose: () =>
 
 function WorkSection({ refProp, onOrder }: { refProp: RefObject<HTMLElement>; onOrder: () => void }) {
   const { t } = useLang();
-  const work = useWork();
+  const defaultWork = useWork();
   const services = useServices();
   const [filter, setFilter] = useState<ServiceId | "all">("all");
-  const [active, setActive] = useState<WorkItem | null>(null);
+  const [active, setActive] = useState<DisplayWorkItem | null>(null);
+  const [work, setWork] = useState<DisplayWorkItem[]>(defaultWork);
+
+  useEffect(() => {
+    const sync = () => {
+      const hidden = getHiddenDefaultIds();
+      setWork([...getCustomWorkItems(), ...defaultWork.filter((item) => !hidden.includes(item.id))]);
+    };
+    sync();
+    window.addEventListener(PORTFOLIO_UPDATED_EVENT, sync);
+    return () => window.removeEventListener(PORTFOLIO_UPDATED_EVENT, sync);
+  }, [defaultWork]);
 
   const filtered = filter === "all" ? work : work.filter((w) => w.category === filter);
 
@@ -1161,14 +1289,14 @@ function WorkSection({ refProp, onOrder }: { refProp: RefObject<HTMLElement>; on
             onClick={() => setActive(w)}
             className="group text-left rounded-lg border border-[#1A1A1E]/10 overflow-hidden hover:border-[#1A1A1E]/25 transition-colors"
           >
-            <div className="h-40 relative overflow-hidden" style={{ backgroundColor: w.hue }}>
+            <div className="h-40 relative overflow-hidden bg-cover bg-center" style={{ backgroundColor: w.hue, backgroundImage: w.image ? `url(${w.image})` : undefined }}>
               <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors flex items-center justify-center">
                 <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-mono text-white bg-black/30 px-2.5 py-1 rounded-full">
                   {t("work_view")}
                 </span>
               </div>
               <span className="absolute bottom-3 left-4 font-mono text-[11px] text-white/70">
-                #{String(w.id).padStart(3, "0")}
+                #{typeof w.id === "number" ? String(w.id).padStart(3, "0") : "CUSTOM"}
               </span>
               <span className="absolute top-3 right-3 font-mono text-[10px] text-white/80 border border-dashed border-white/30 rounded-full px-2 py-1 rotate-3">
                 {w.tag}
@@ -1259,6 +1387,7 @@ export default function Page() {
   const { status } = useSession();
   const [orderOpen, setOrderOpen] = useState(false);
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
+  const [consultationOpen, setConsultationOpen] = useState(false);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
 
   const home = useRef<HTMLDivElement>(null);
@@ -1274,12 +1403,14 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9F9FB] text-[#1A1A1E]" style={{ fontFamily: "Inter, ui-sans-serif, system-ui" }}>
-      <Navbar onOrder={handleOrder} refs={{ home, work, terms }} />
+    <div className="min-h-screen bg-[#F9F9FB] text-[#1A1A1E] font-sans pt-16">
+      <Navbar onOrder={handleOrder} onConsult={() => setConsultationOpen(true)} refs={{ home, work, terms }} />
       <div ref={home}>
-        <Hero onOrder={handleOrder} workRef={work} />
+        <Hero onOrder={handleOrder} onConsult={() => setConsultationOpen(true)} workRef={work} />
       </div>
+      <ServicePackages onOrder={handleOrder} onConsult={() => setConsultationOpen(true)} />
       <WorkSection refProp={work} onOrder={handleOrder} />
+      <AvailabilityBanner />
       <TermsSection refProp={terms} />
       <Footer onOrder={handleOrder} />
 
@@ -1294,6 +1425,14 @@ export default function Page() {
       <AnimatePresence>{successData && <SuccessModal data={successData} onClose={() => setSuccessData(null)} />}</AnimatePresence>
 
       <LoginPromptModal open={loginPromptOpen} onClose={() => setLoginPromptOpen(false)} />
+      <ConsultationModal open={consultationOpen} onClose={() => setConsultationOpen(false)} />
     </div>
   );
 }
+
+type DisplayWorkItem = Omit<WorkItem, "id" | "category"> & {
+  id: number | string;
+  category: ServiceId | "lainnya";
+  image?: string;
+  description?: string;
+};

@@ -1,11 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-.font-mono { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", 'Sora', ui-sans-serif, system-ui, sans-serif; }
-.font-heading { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", 'Sora', ui-sans-serif, system-ui, sans-serif; }
-.font-sans { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", 'Inter', ui-sans-serif, system-ui, sans-serif; }
+.font-mono,
+.font-heading,
+.font-sans {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+}
 :root {
   color-scheme: light;
 }
@@ -18,11 +19,83 @@ html {
 }
 
 body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   overflow-x: hidden;
   max-width: 100%;
   /* Sembunyikan scrollbar visual (tetap bisa discroll seperti biasa) */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE / Edge lama */
+}
+
+.hero-art {
+  position: relative;
+  isolation: isolate;
+  perspective: 1100px;
+}
+
+.hero-art::before {
+  content: "";
+  position: absolute;
+  inset: 15% 7% 8% 12%;
+  border: 1px solid rgba(26, 26, 30, 0.12);
+  transform: rotate(-5deg);
+  z-index: -1;
+}
+
+.brand-stage {
+  position: relative;
+  width: min(20rem, 76vw);
+  height: 21rem;
+  transform-style: preserve-3d;
+  transform: rotateX(3deg) rotateY(-8deg);
+}
+
+.brand-card {
+  position: absolute;
+  width: 12rem;
+  height: 15rem;
+  border: 1px solid rgba(26, 26, 30, 0.2);
+  transform-style: preserve-3d;
+}
+
+.brand-card::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: -8px;
+  width: 7px;
+  height: calc(100% - 7px);
+  background: #d5e8f1;
+  border: 1px solid rgba(26, 26, 30, 0.16);
+  transform: skewY(-45deg);
+  transform-origin: left top;
+}
+
+.brand-card::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  bottom: -8px;
+  width: calc(100% - 7px);
+  height: 7px;
+  background: #c5d9c6;
+  border: 1px solid rgba(26, 26, 30, 0.16);
+  transform: skewX(-45deg);
+  transform-origin: left top;
+}
+
+.brand-card--back { background: #edf3ec; transform: rotate(-12deg) translate3d(14px, 23px, -45px); }
+.brand-card--main { background: #e1f3fe; transform: rotate(8deg) translate3d(65px, 2px, 40px); }
+.brand-tile { position: absolute; left: 7px; top: 20px; width: 5rem; height: 5rem; background: #fbf3db; border: 1px solid rgba(26, 26, 30, 0.2); transform: rotate(-12deg) translateZ(90px); }
+.brand-orbit { position: absolute; border: 1px solid rgba(26, 26, 30, 0.16); border-radius: 50%; transform: rotateX(68deg) rotateZ(-16deg); }
+.brand-orbit--one { width: 16rem; height: 16rem; left: 40px; top: 28px; }
+.brand-orbit--two { width: 20rem; height: 10rem; left: 4px; top: 84px; transform: rotateX(70deg) rotateZ(17deg); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-float { animation: hero-float 8s cubic-bezier(.45, 0, .55, 1) infinite; }
+  @keyframes hero-float {
+    50% { transform: translateY(-12px) rotateY(3deg); }
+  }
 }
 
 html::-webkit-scrollbar,

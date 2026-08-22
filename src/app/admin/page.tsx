@@ -1,31 +1,50 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, AlertTriangle, LogOut } from "lucide-react";
-import { useLang } from "@/lib/i18n";
+import { useLang, useServices, type ServiceId } from "@/lib/i18n";
 import { getAllOrders, updateOrderStatus, type StoredOrder, type OrderStatus } from "@/lib/orders";
+import { addWorkItem, deleteWorkItem, getCustomWorkItems, getHiddenDefaultIds, toggleDefaultVisibility, updateWorkItem, type CustomWorkItem } from "@/lib/portfolio";
+import { getSiteSettings, saveSiteSettings, type SiteSettings } from "@/lib/site-settings";
 
 const STATUS_OPTIONS: OrderStatus[] = ["pending", "progress", "review", "done"];
 
 export default function AdminPage() {
   const { t } = useLang();
+  const services = useServices();
   const { data: session, status } = useSession();
   const router = useRouter();
   const [orders, setOrders] = useState<StoredOrder[]>([]);
+  const [works, setWorks] = useState<CustomWorkItem[]>([]);
+  const [hiddenDefaults, setHiddenDefaults] = useState<number[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ availability: "available", note: "Menerima proyek baru minggu ini." });
+  const emptyWork = { title: "", tag: "", category: "logo" as ServiceId, hue: "#0038FF", image: "", description: "" };
+  const [workForm, setWorkForm] = useState(emptyWork);
+
+  const refreshPortfolio = () => { setWorks(getCustomWorkItems()); setHiddenDefaults(getHiddenDefaultIds()); };
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
     else if (session?.user?.role === "pending-admin") router.replace("/admin-verify");
     else if (session?.user?.role === "member") router.replace("/");
-    else if (session?.user?.role === "admin") setOrders(getAllOrders());
+    else if (session?.user?.role === "admin") { setOrders(getAllOrders()); refreshPortfolio(); setSiteSettings(getSiteSettings()); }
   }, [status, session, router]);
 
   const changeStatus = (code: string, s: OrderStatus) => {
     updateOrderStatus(code, s);
     setOrders(getAllOrders());
+  };
+
+  const saveWork = (e: FormEvent) => {
+    e.preventDefault();
+    if (!workForm.title.trim() || !workForm.tag.trim()) return;
+    if (editingId) updateWorkItem(editingId, workForm);
+    else addWorkItem(workForm);
+    setWorkForm(emptyWork); setEditingId(null); refreshPortfolio();
   };
 
   if (status === "loading" || session?.user?.role !== "admin") return null;
@@ -51,6 +70,33 @@ export default function AdminPage() {
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{t("admin_warning")}</span>
         </div>
+
+        <section className="mb-12 border-t border-[#1A1A1E]/10 pt-8">
+          <p className="font-mono text-[10px] tracking-widest text-[#0038FF]">STATUS STUDIO</p>
+          <h2 className="font-heading text-3xl leading-none mt-2 mb-5">Ketersediaan proyek</h2>
+          <div className="border border-[#1A1A1E]/10 rounded-lg p-5 bg-white grid sm:grid-cols-[180px_1fr_auto] gap-3 items-end">
+            <label className="text-sm font-medium">Status<select value={siteSettings.availability} onChange={(e) => setSiteSettings({ ...siteSettings, availability: e.target.value as SiteSettings["availability"] })} className="mt-2 block w-full border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 bg-white text-sm"><option value="available">Slot tersedia</option><option value="limited">Slot terbatas</option><option value="closed">Antrean penuh</option></select></label>
+            <label className="text-sm font-medium">Catatan<input value={siteSettings.note} onChange={(e) => setSiteSettings({ ...siteSettings, note: e.target.value })} className="mt-2 block w-full border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm" /></label>
+            <button onClick={() => saveSiteSettings(siteSettings)} className="bg-[#1A1A1E] text-white rounded-md px-4 py-2.5 text-sm font-medium">Simpan</button>
+          </div>
+        </section>
+
+        <section className="mb-12 border-t border-[#1A1A1E]/10 pt-8">
+          <div className="flex items-end justify-between gap-4 mb-5"><div><p className="font-mono text-[10px] tracking-widest text-[#0038FF]">PORTFOLIO CMS</p><h2 className="font-heading text-3xl leading-none mt-2">Atur Karya Kami</h2></div><span className="text-xs text-[#1A1A1E]/45">Perubahan langsung tampil di landing pada browser ini.</span></div>
+          <form onSubmit={saveWork} className="grid sm:grid-cols-2 gap-3 border border-[#1A1A1E]/10 rounded-lg p-5 bg-white">
+            <input value={workForm.title} onChange={(e) => setWorkForm({ ...workForm, title: e.target.value })} placeholder="Judul karya" className="border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm" required />
+            <input value={workForm.tag} onChange={(e) => setWorkForm({ ...workForm, tag: e.target.value })} placeholder="Label kategori" className="border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm" required />
+            <select value={workForm.category} onChange={(e) => setWorkForm({ ...workForm, category: e.target.value as ServiceId })} className="border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm bg-white">{services.filter((s) => s.id !== "konsultasi").map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}</select>
+            <input value={workForm.hue} onChange={(e) => setWorkForm({ ...workForm, hue: e.target.value })} placeholder="Warna fallback, mis. #0038FF" className="border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm" />
+            <input value={workForm.image} onChange={(e) => setWorkForm({ ...workForm, image: e.target.value })} placeholder="URL gambar (opsional)" className="sm:col-span-2 border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm" />
+            <textarea value={workForm.description} onChange={(e) => setWorkForm({ ...workForm, description: e.target.value })} placeholder="Deskripsi singkat karya (opsional)" className="sm:col-span-2 border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm resize-none" rows={2} />
+            <div className="sm:col-span-2 flex gap-2"><button className="bg-[#1A1A1E] text-white rounded-md px-4 py-2.5 text-sm font-medium">{editingId ? "Simpan perubahan" : "Tambah karya"}</button>{editingId && <button type="button" onClick={() => { setEditingId(null); setWorkForm(emptyWork); }} className="border border-[#1A1A1E]/15 rounded-md px-4 py-2.5 text-sm">Batal</button>}</div>
+          </form>
+          <div className="mt-4 space-y-2">
+            {works.map((work) => <div key={work.id} className="flex items-center justify-between gap-3 border border-[#1A1A1E]/10 rounded-md p-3 text-sm"><span className="truncate"><b>{work.title}</b> <span className="text-[#1A1A1E]/45">{work.tag}</span></span><span className="flex gap-3 shrink-0"><button onClick={() => { setEditingId(work.id); setWorkForm({ title: work.title, tag: work.tag, category: work.category as ServiceId, hue: work.hue, image: work.image || "", description: work.description || "" }); }} className="text-[#0038FF]">Edit</button><button onClick={() => { deleteWorkItem(work.id); refreshPortfolio(); }} className="text-red-700">Hapus</button></span></div>)}
+            {[1,2,3,4,5,6].map((id) => <button key={id} onClick={() => { toggleDefaultVisibility(id); refreshPortfolio(); }} className="w-full text-left flex justify-between gap-3 border border-dashed border-[#1A1A1E]/15 rounded-md p-3 text-xs text-[#1A1A1E]/60"><span>Karya bawaan #{String(id).padStart(3, "0")}</span><span>{hiddenDefaults.includes(id) ? "Tampilkan" : "Sembunyikan"}</span></button>)}
+          </div>
+        </section>
 
         {orders.length === 0 ? (
           <p className="text-sm text-[#1A1A1E]/50">{t("admin_empty")}</p>

@@ -22,9 +22,11 @@ export interface StoredOrder {
   briefRefs: string;
   fileNames: string[];
   status: OrderStatus;
+  customerEmail?: string | null;
 }
 
 const STORAGE_KEY = "kookiez_orders";
+const DRAFT_KEY = "kookiez_order_draft";
 
 function readAll(): StoredOrder[] {
   if (typeof window === "undefined") return [];
@@ -70,4 +72,32 @@ export function updateOrderStatus(code: string, status: OrderStatus) {
     all[idx].status = status;
     writeAll(all);
   }
+}
+
+export interface OrderDraft {
+  service: string | null;
+  brief: { scope: string; refs: string };
+  budget: string | null;
+  deadline: string;
+  updatedAt: string;
+}
+
+export function getOrderDraft(): OrderDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as OrderDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveOrderDraft(draft: OrderDraft) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+}
+
+export function clearOrderDraft() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(DRAFT_KEY);
 }

@@ -24,6 +24,7 @@ const dict = {
     hero_desc:
       "Kookiez bikinin logo, poster, banner, flyer, sampai brosur — plus sesi konsultasi desain kalau kamu masih bingung mau mulai dari mana. Pesan lewat form, revisi jelas, hasil rapi.",
     hero_cta: "Isi formulir pembelian",
+    hero_consult_cta: "Konsultasi dulu",
     hero_cta_secondary: "Lihat karya kami",
     hero_stat_done: "desain selesai",
     hero_stat_rating: "rating klien",
@@ -143,6 +144,7 @@ const dict = {
     hero_desc:
       "Kookiez makes logos, posters, banners, flyers, and brochures — plus a design consultation session if you're not sure where to start. Order through a form, clear revisions, tidy results.",
     hero_cta: "Fill out the order form",
+    hero_consult_cta: "Consult first",
     hero_cta_secondary: "See our work",
     hero_stat_done: "designs completed",
     hero_stat_rating: "client rating",
