@@ -1027,9 +1027,9 @@ function Real3DScene() {
     const gl = renderer.gl;
     gl.clearColor(0, 0, 0, 0);
 
-    // Kamera dimundurkan agar jangkauan pandang lebih luas untuk full screen
+    // 1. KAMERA Dikalibrasi agar pas dengan lebar layar
     const camera = new Camera(gl, { fov: 35, near: 0.1, far: 50 });
-    camera.position.set(0, 0, 10.0);
+    camera.position.set(0, 0, 7.0); 
     camera.lookAt([0, 0, 0]);
 
     const scene = new Transform();
@@ -1073,32 +1073,35 @@ function Real3DScene() {
     const makeProgram = (color: [number, number, number], dark: [number, number, number]) =>
       new Program(gl, { vertex, fragment, uniforms: { uColor: { value: color }, uColorDark: { value: dark } } });
 
-    // 1. KUBUS BIRU - Disebar ke kanan atas
+    // 2. KUBUS (Posisi: Kanan Atas)
     const cube = new Mesh(gl, {
       geometry: new Box(gl, { width: 1, height: 1, depth: 1 }),
       program: makeProgram([0.2, 0.45, 1.0], [0.0, 0.1, 0.4]),
     });
-    cube.position.set(4.5, 2.5, -2.0); // Posisi (X: kanan, Y: atas, Z: kedalaman)
-    cube.scale.set(1.4, 1.4, 1.4);
+    cube.position.set(2.8, 2.2, -1.0); 
+    cube.scale.set(1.2, 1.2, 1.2);
     cube.setParent(scene);
 
-    // 2. CINCIN BIRU - Disebar ke kanan bawah
+    // 3. CINCIN (Posisi: Kanan Bawah)
     const ring = new Mesh(gl, {
       geometry: new Torus(gl, { radius: 0.6, tube: 0.2, radialSegments: 32, tubularSegments: 64 }),
       program: makeProgram([0.15, 0.5, 1.0], [0.0, 0.1, 0.5]),
     });
-    ring.position.set(3.5, -2.5, 1.0);
+    ring.position.set(2.4, -2.5, 1.0);
     ring.rotation.x = Math.PI / 2.2;
-    ring.scale.set(1.5, 1.5, 1.5);
+    ring.scale.set(1.4, 1.4, 1.4);
     ring.setParent(scene);
 
-    // 3. PENSIL - Di bagian tengah condong ke kanan (fokus utama)
+    // 4. PENSIL (Posisi: Kanan Tengah - Skala Besar & Mendekat ke Kamera)
     const pencil = new Transform();
-    pencil.position.set(2.0, 0.0, 2.5);
-    pencil.rotation.z = -0.5;
-    pencil.scale.set(1.8, 1.8, 1.8); // Diperbesar
+    // X=2.2 (Sisi Kanan), Z=2.5 (Sangat dekat dengan kamera agar terlihat besar)
+    pencil.position.set(2.2, -0.2, 2.5); 
+    pencil.rotation.z = 0.25; // Condong miring sedikit ke arah kiri bawah
+    pencil.rotation.x = -0.15;
+    pencil.scale.set(2.0, 2.0, 2.0); // Ukuran dilipatgandakan
     pencil.setParent(scene);
 
+    // Komponen Pensil (Tidak perlu diubah ukurannya satu per satu, karena Parent-nya sudah diperbesar)
     const pencilBody = new Mesh(gl, {
       geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 1.1, radialSegments: 32 }),
       program: makeProgram([1.0, 0.72, 0.15], [0.55, 0.3, 0.0]),
@@ -1143,18 +1146,18 @@ function Real3DScene() {
     const render = (time: number) => {
       const t = time * 0.001;
 
-      // Animasi melayang masing-masing objek
+      // Animasi melayang
       cube.rotation.x = t * 0.35;
       cube.rotation.y = t * 0.5;
-      cube.position.y = 2.5 + Math.sin(t * 0.9) * 0.15;
+      cube.position.y = 2.2 + Math.sin(t * 0.9) * 0.15;
 
       ring.rotation.z = t * 0.3;
       ring.position.y = -2.5 + Math.sin(t * 0.8 + 1.4) * 0.15;
 
-      pencil.rotation.y = t * 0.5;
-      pencil.position.y = 0.0 + Math.sin(t * 1.1 + 0.6) * 0.15;
+      pencil.rotation.y = t * 0.35; 
+      pencil.position.y = -0.2 + Math.sin(t * 1.1 + 0.6) * 0.15;
 
-      scene.rotation.y = Math.sin(t * 0.15) * 0.05; // Seluruh scene bergerak sangat lambat
+      scene.rotation.y = Math.sin(t * 0.15) * 0.05;
 
       renderer.render({ scene, camera });
       frame = requestAnimationFrame(render);
