@@ -1225,6 +1225,7 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
 
 function Real3DScene() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [debugInfo, setDebugInfo] = useState<string>("");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1404,6 +1405,16 @@ function Real3DScene() {
         cube,
         ring
       );
+      // DEBUG SEMENTARA: tampilkan ukuran canvas & posisi objek yang
+      // benar-benar kehitung di device ini, biar tidak nebak-nebak lagi.
+      // Hapus blok ini setelah masalah ketemu.
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      setDebugInfo(
+        `canvas ${w}x${h} (aspect ${(w / Math.max(h, 1)).toFixed(2)}) | ` +
+        `pencil x=${layout.pencil.x} y=${layout.pencil.y} scale=${layout.pencil.scale} | ` +
+        `camZ=${layout.cameraZ} fov=${layout.fov} | dpr=${window.devicePixelRatio}`
+      );
     };
 
     // window "resize" saja tidak cukup: di sebagian device ukuran section
@@ -1457,11 +1468,19 @@ function Real3DScene() {
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="h-full w-full outline-none"
-      aria-label="Objek 3D: pensil, kubus, dan cincin"
-    />
+    <div className="relative h-full w-full">
+      <canvas
+        ref={canvasRef}
+        className="h-full w-full outline-none"
+        aria-label="Objek 3D: pensil, kubus, dan cincin"
+      />
+      {/* DEBUG SEMENTARA — hapus <div> ini setelah masalah posisi ketemu */}
+      {debugInfo && (
+        <div className="pointer-events-none absolute left-1 top-1 z-50 max-w-[90%] rounded bg-black/80 px-1.5 py-1 font-mono text-[9px] leading-tight text-lime-300">
+          {debugInfo}
+        </div>
+      )}
+    </div>
   );
 }
 
