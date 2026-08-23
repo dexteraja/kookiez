@@ -106,3 +106,54 @@ export function toggleDefaultVisibility(id: number) {
   const next = hidden.includes(id) ? hidden.filter((h) => h !== id) : [...hidden, id];
   writeHidden(next);
 }
+
+/* -------------------- Katalog utama: public/data/portfolio.json -------------------- */
+/* Ini SUMBER DATA ASLI untuk karya yang tampil di landing page.       */
+/* Edit file public/data/portfolio.json untuk menambah/mengubah/       */
+/* menghapus karya — website otomatis sinkron karena datanya diambil  */
+/* langsung dari file ini saat halaman dimuat.                        */
+
+interface RawPortfolioJsonItem {
+  id: string;
+  klien: string;
+  kategori: string;
+  tahun?: string;
+  span?: string;
+  image?: string;
+  hue?: string;
+  deskripsi?: string;
+}
+
+const CATEGORY_LABEL_TO_ID: Record<string, ServiceId> = {
+  logo: "logo",
+  banner: "banner",
+  poster: "poster",
+  flyer: "flyer",
+  brosur: "brosur",
+  konsultasi: "konsultasi",
+};
+
+function mapKategoriToCategory(kategori: string): ServiceId | "lainnya" {
+  return CATEGORY_LABEL_TO_ID[kategori.trim().toLowerCase()] ?? "lainnya";
+}
+
+export async function fetchPublishedPortfolio(): Promise<CustomWorkItem[]> {
+  try {
+    const res = await fetch("/data/portfolio.json", { cache: "no-store" });
+    if (!res.ok) return [];
+    const raw = (await res.json()) as RawPortfolioJsonItem[];
+    if (!Array.isArray(raw)) return [];
+    return raw.map((item) => ({
+      id: `json-${item.id}`,
+      title: item.klien,
+      tag: item.kategori,
+      category: mapKategoriToCategory(item.kategori),
+      hue: item.hue && item.hue.startsWith("#") ? item.hue : "#0038FF",
+      image: item.image,
+      description: item.deskripsi,
+      createdAt: item.tahun ?? "",
+    }));
+  } catch {
+    return [];
+  }
+}
