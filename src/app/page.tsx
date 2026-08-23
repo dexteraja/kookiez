@@ -1406,6 +1406,26 @@ function Real3DScene() {
       );
     };
 
+    // window "resize" saja tidak cukup: di sebagian device ukuran section
+    // baru "settle" setelah font/CSS selesai reflow (bukan karena user
+    // resize window), jadi pengukuran pertama bisa dapat clientWidth/Height
+    // yang belum final -> objek 3D jadi kecil/kepotong. ResizeObserver
+    // memantau perubahan ukuran elemen secara langsung, apapun penyebabnya.
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => resize());
+      resizeObserver.observe(canvas);
+    }
+
+    // Ukur ulang beberapa kali di awal (lewat rAF) untuk menutup celah
+    // sebelum ResizeObserver sempat trigger, mis. saat font web / gambar
+    // di atas hero masih memuat dan mengubah tinggi section.
+    const settleFrames = [
+      requestAnimationFrame(resize),
+      requestAnimationFrame(() => requestAnimationFrame(resize)),
+    ];
+    const settleTimeout = window.setTimeout(resize, 400);
+
     let frame = 0;
     const render = (time: number) => {
       updateResponsive3DAnimation(
@@ -1428,6 +1448,9 @@ function Real3DScene() {
 
     return () => {
       cancelAnimationFrame(frame);
+      settleFrames.forEach((id) => cancelAnimationFrame(id));
+      window.clearTimeout(settleTimeout);
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", resize);
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     };
