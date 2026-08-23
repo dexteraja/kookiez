@@ -33,8 +33,8 @@ export default function LoginPage() {
         <h1 className="font-heading text-2xl font-semibold mb-6">Masuk</h1>
 
         <button
-          onClick={() => signIn("google", { callbackUrl: "/" })}
-          className="w-full flex items-center justify-center gap-2 border border-[#1A1A1E]/15 bg-white py-3 rounded-lg text-sm font-medium hover:bg-[#1A1A1E]/5 transition-colors mb-4"
+          onClick={() => signIn("google", { callbackUrl: "https://kookiez-kappa.vercel.app/" })}
+          className="w-full flex items-center justify-center gap-2 border border-[#1A1A1E]/15 bg-white py-3 rounded-2xl text-sm font-medium hover:bg-[#1A1A1E]/5 transition-colors mb-4"
         >
           Masuk dengan Google
         </button>
@@ -49,7 +49,7 @@ export default function LoginPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="kamu@email.com"
-          className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF] mb-3"
+          className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF] mb-3"
         />
         <label className="block text-sm font-medium mb-2">Password</label>
         <input
@@ -58,13 +58,13 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
           placeholder="••••••••"
-          className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF] mb-2"
+          className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF] mb-2"
         />
         {error && <p className="text-xs text-red-500 mb-2">Email atau password salah.</p>}
         <button
           onClick={submit}
           disabled={loading}
-          className="w-full bg-[#0038FF] text-white py-3 rounded-lg text-sm font-medium hover:bg-[#0030DB] transition-colors mt-2 disabled:opacity-50"
+          className="w-full bg-[#0038FF] text-white py-3 rounded-2xl text-sm font-medium hover:bg-[#0030DB] transition-colors mt-2 disabled:opacity-50"
         >
           {loading ? "Memproses…" : "Masuk"}
         </button>

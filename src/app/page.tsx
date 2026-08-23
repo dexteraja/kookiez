@@ -110,7 +110,7 @@ function StepDots({ step }: { step: number }) {
         return (
           <div key={label} className="flex items-center gap-2">
             <div
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-md border ${
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-xl border ${
                 active
                   ? "border-[#0038FF] text-[#0038FF] bg-[#0038FF]/5"
                   : done
@@ -204,12 +204,12 @@ function StepService({ value, onChange }: { value: ServiceId | null; onChange: (
             <button
               key={s.id}
               onClick={() => onChange(s.id)}
-              className={`text-left p-5 rounded-lg border transition-colors ${
+              className={`text-left p-5 rounded-2xl border transition-colors ${
                 active ? "border-[#0038FF] bg-[#0038FF]/5" : "border-[#1A1A1E]/10 hover:border-[#1A1A1E]/30"
               }`}
             >
               <div
-                className={`w-9 h-9 rounded-md flex items-center justify-center mb-4 ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center mb-4 ${
                   active ? "bg-[#0038FF] text-white" : "bg-[#1A1A1E]/5 text-[#1A1A1E]/60"
                 }`}
               >
@@ -283,7 +283,7 @@ function StepBrief({
         value={data.scope}
         onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onChange({ ...data, scope: e.target.value })}
         placeholder={t("step2_detail_placeholder")}
-        className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm text-[#1A1A1E] placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF] resize-none"
+        className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm text-[#1A1A1E] placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF] resize-none"
       />
 
       <label className="block text-sm font-medium text-[#1A1A1E] mb-2 mt-5">{t("step2_ref_label")}</label>
@@ -294,7 +294,7 @@ function StepBrief({
           value={data.refs}
           onChange={(e: ChangeEvent<HTMLInputElement>) => onChange({ ...data, refs: e.target.value })}
           placeholder={t("step2_ref_placeholder")}
-          className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white pl-10 pr-4 py-3 text-sm text-[#1A1A1E] placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF]"
+          className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white pl-10 pr-4 py-3 text-sm text-[#1A1A1E] placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF]"
         />
       </div>
 
@@ -311,7 +311,7 @@ function StepBrief({
           if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
         }}
         onClick={() => fileRef.current?.click()}
-        className={`rounded-lg border border-dashed p-8 text-center cursor-pointer transition-colors ${
+        className={`rounded-2xl border border-dashed p-8 text-center cursor-pointer transition-colors ${
           dragActive ? "border-[#0038FF] bg-[#0038FF]/5" : "border-[#1A1A1E]/20 hover:border-[#1A1A1E]/40"
         }`}
       >
@@ -334,7 +334,7 @@ function StepBrief({
           {data.files.map((f) => (
             <li
               key={f.name}
-              className="flex items-center justify-between text-sm rounded-md border border-[#1A1A1E]/10 px-3 py-2"
+              className="flex items-center justify-between text-sm rounded-xl border border-[#1A1A1E]/10 px-3 py-2"
             >
               <span className="flex items-center gap-2 text-[#1A1A1E]/70 truncate">
                 <FileText className="w-3.5 h-3.5 shrink-0 text-[#1A1A1E]/40" />
@@ -371,7 +371,7 @@ function StepBudget({ data, onChange }: { data: BudgetData; onChange: (d: Budget
             <button
               key={tier.id}
               onClick={() => onChange({ ...data, budget: tier.id })}
-              className={`text-left p-4 rounded-lg border transition-colors ${
+              className={`text-left p-4 rounded-2xl border transition-colors ${
                 active ? "border-[#0038FF] bg-[#0038FF]/5" : "border-[#1A1A1E]/10 hover:border-[#1A1A1E]/30"
               }`}
             >
@@ -389,7 +389,7 @@ function StepBudget({ data, onChange }: { data: BudgetData; onChange: (d: Budget
           type="date"
           value={data.deadline}
           onChange={(e: ChangeEvent<HTMLInputElement>) => onChange({ ...data, deadline: e.target.value })}
-          className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white pl-10 pr-4 py-3 text-sm text-[#1A1A1E] focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF]"
+          className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white pl-10 pr-4 py-3 text-sm text-[#1A1A1E] focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF]"
         />
       </div>
     </div>
@@ -421,7 +421,7 @@ function StepCheckout({
       <h3 className="font-mono text-xs tracking-widest text-[#1A1A1E]/40 mb-1">{t("step4_kicker")}</h3>
       <h2 className="font-heading text-2xl font-semibold text-[#1A1A1E] mb-6">{t("step4_title")}</h2>
 
-      <div className="rounded-lg border border-[#1A1A1E]/10 overflow-hidden">
+      <div className="rounded-2xl border border-[#1A1A1E]/10 overflow-hidden">
         <div className="p-5 space-y-2.5 text-sm">
           <div className="flex justify-between">
             <span className="text-[#1A1A1E]/50">{t("step4_service")}</span>
@@ -455,7 +455,7 @@ function StepCheckout({
                   <button
                     key={p.id}
                     onClick={() => onChange({ ...order, plan: p.id })}
-                    className={`text-left p-3.5 rounded-lg border transition-colors ${
+                    className={`text-left p-3.5 rounded-2xl border transition-colors ${
                       order.plan === p.id ? "border-[#0038FF] bg-[#0038FF]/5" : "border-[#1A1A1E]/10 hover:border-[#1A1A1E]/30"
                     }`}
                   >
@@ -480,7 +480,7 @@ function StepCheckout({
                     <button
                       key={m.id}
                       onClick={() => onChange({ ...order, method: m.id })}
-                      className={`flex flex-col items-center gap-1.5 py-3 rounded-lg border transition-colors ${
+                      className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border transition-colors ${
                         active ? "border-[#0038FF] bg-[#0038FF]/5 text-[#0038FF]" : "border-[#1A1A1E]/10 text-[#1A1A1E]/60 hover:border-[#1A1A1E]/30"
                       }`}
                     >
@@ -505,7 +505,7 @@ function StepCheckout({
       <button
         onClick={onPay}
         disabled={paying}
-        className="mt-6 w-full flex items-center justify-center gap-2 bg-[#0038FF] text-white py-3.5 rounded-lg font-medium hover:bg-[#0030DB] transition-colors disabled:opacity-60"
+        className="mt-6 w-full flex items-center justify-center gap-2 bg-[#0038FF] text-white py-3.5 rounded-2xl font-medium hover:bg-[#0030DB] transition-colors disabled:opacity-60"
       >
         {paying ? (
           <>
@@ -528,8 +528,8 @@ function StepCheckout({
 function PaymentMethodPanel({ method }: { method: PaymentMethod }) {
   if (method === "qris") {
     return (
-      <div className="rounded-lg border border-[#1A1A1E]/10 p-5 flex flex-col items-center mb-5">
-        <div className="w-32 h-32 rounded-md bg-[#1A1A1E]/5 flex items-center justify-center mb-2">
+      <div className="rounded-2xl border border-[#1A1A1E]/10 p-5 flex flex-col items-center mb-5">
+        <div className="w-32 h-32 rounded-xl bg-[#1A1A1E]/5 flex items-center justify-center mb-2">
           <QrCode className="w-12 h-12 text-[#1A1A1E]/30" />
         </div>
         <p className="text-xs text-[#1A1A1E]/40 font-mono">Scan QRIS untuk bayar</p>
@@ -538,7 +538,7 @@ function PaymentMethodPanel({ method }: { method: PaymentMethod }) {
   }
   if (method === "va") {
     return (
-      <div className="rounded-lg border border-[#1A1A1E]/10 p-5 mb-5">
+      <div className="rounded-2xl border border-[#1A1A1E]/10 p-5 mb-5">
         <div className="flex items-center justify-between text-sm">
           <span className="text-[#1A1A1E]/50">No. Virtual Account</span>
           <span className="font-mono font-medium text-[#1A1A1E]">8808 1234 5678 90</span>
@@ -547,19 +547,19 @@ function PaymentMethodPanel({ method }: { method: PaymentMethod }) {
     );
   }
   return (
-    <div className="rounded-lg border border-[#1A1A1E]/10 p-5 mb-5 space-y-3">
+    <div className="rounded-2xl border border-[#1A1A1E]/10 p-5 mb-5 space-y-3">
       <input
         placeholder="Nomor kartu"
-        className="w-full rounded-md border border-[#1A1A1E]/15 px-3 py-2.5 text-sm placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF]"
+        className="w-full rounded-xl border border-[#1A1A1E]/15 px-3 py-2.5 text-sm placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF]"
       />
       <div className="flex gap-3">
         <input
           placeholder="MM/YY"
-          className="w-1/2 rounded-md border border-[#1A1A1E]/15 px-3 py-2.5 text-sm placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF]"
+          className="w-1/2 rounded-xl border border-[#1A1A1E]/15 px-3 py-2.5 text-sm placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF]"
         />
         <input
           placeholder="CVC"
-          className="w-1/2 rounded-md border border-[#1A1A1E]/15 px-3 py-2.5 text-sm placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF]"
+          className="w-1/2 rounded-xl border border-[#1A1A1E]/15 px-3 py-2.5 text-sm placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF]"
         />
       </div>
     </div>
@@ -655,7 +655,7 @@ function OrderModal({
         exit={{ y: 40, opacity: 0 }}
         transition={{ duration: 0.25 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#F9F9FB] w-full sm:max-w-lg sm:rounded-xl rounded-t-2xl max-h-[92vh] overflow-y-auto"
+        className="bg-[#F9F9FB] w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[92vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between px-6 pt-6 pb-4 sticky top-0 bg-[#F9F9FB] z-10 border-b border-[#1A1A1E]/10">
           <StepDots step={step} />
@@ -700,7 +700,7 @@ function OrderModal({
             <button
               onClick={() => setStep((s) => Math.min(4, s + 1))}
               disabled={!canNext}
-              className="flex items-center gap-2 bg-[#0038FF] text-white text-sm font-medium px-5 py-2.5 rounded-lg disabled:opacity-40 hover:bg-[#0030DB] transition-colors"
+              className="flex items-center gap-2 bg-[#0038FF] text-white text-sm font-medium px-5 py-2.5 rounded-2xl disabled:opacity-40 hover:bg-[#0030DB] transition-colors"
             >
               {t("modal_next")} <ArrowRight className="w-4 h-4" />
             </button>
@@ -731,7 +731,7 @@ function SuccessModal({ data, onClose }: { data: SuccessData | null; onClose: ()
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl max-w-sm w-full p-7 text-center"
+        className="bg-white rounded-2xl max-w-sm w-full p-7 text-center"
       >
         <div className="w-14 h-14 rounded-full bg-[#0038FF]/10 flex items-center justify-center mx-auto mb-4">
           <CheckCircle2 className="w-7 h-7 text-[#0038FF]" />
@@ -739,7 +739,7 @@ function SuccessModal({ data, onClose }: { data: SuccessData | null; onClose: ()
         <h3 className="font-heading text-xl font-semibold text-[#1A1A1E] mb-2">{t("success_title")}</h3>
         <p className="text-sm text-[#1A1A1E]/50 mb-5">{t("success_desc")}</p>
 
-        <div className="rounded-lg border border-dashed border-[#0038FF]/40 bg-[#0038FF]/5 p-4 mb-5">
+        <div className="rounded-2xl border border-dashed border-[#0038FF]/40 bg-[#0038FF]/5 p-4 mb-5">
           <div className="text-[10px] font-mono tracking-widest text-[#1A1A1E]/40 mb-1">
             {t("success_code_label")}
           </div>
@@ -771,7 +771,7 @@ function SuccessModal({ data, onClose }: { data: SuccessData | null; onClose: ()
         <div className="flex flex-col gap-2">
           <Link
             href={`/lacak?code=${encodeURIComponent(data.code)}`}
-            className="w-full bg-[#1A1A1E] text-white py-3 rounded-lg font-medium text-sm hover:bg-[#1A1A1E]/85 transition-colors"
+            className="w-full bg-[#1A1A1E] text-white py-3 rounded-2xl font-medium text-sm hover:bg-[#1A1A1E]/85 transition-colors"
           >
             {t("success_track_btn")}
           </Link>
@@ -779,13 +779,13 @@ function SuccessModal({ data, onClose }: { data: SuccessData | null; onClose: ()
             href={waLink(waMsg)}
             target="_blank"
             rel="noreferrer"
-            className="w-full border border-[#1A1A1E]/15 text-[#1A1A1E] py-3 rounded-lg font-medium text-sm hover:border-[#1A1A1E]/30 transition-colors flex items-center justify-center gap-2"
+            className="w-full border border-[#1A1A1E]/15 text-[#1A1A1E] py-3 rounded-2xl font-medium text-sm hover:border-[#1A1A1E]/30 transition-colors flex items-center justify-center gap-2"
           >
             <MessageCircle className="w-4 h-4" style={{ color: "#25D366" }} /> {t("success_wa_btn")}
           </a>
           <button
             onClick={onClose}
-            className="w-full text-[#1A1A1E]/50 py-2 rounded-lg font-medium text-sm hover:text-[#1A1A1E] transition-colors"
+            className="w-full text-[#1A1A1E]/50 py-2 rounded-2xl font-medium text-sm hover:text-[#1A1A1E] transition-colors"
           >
             {t("success_close")}
           </button>
@@ -811,7 +811,7 @@ function LoginPromptModal({ open, onClose }: { open: boolean; onClose: () => voi
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-xl max-w-sm w-full p-7 text-center"
+            className="bg-white rounded-2xl max-w-sm w-full p-7 text-center"
           >
             <div className="w-14 h-14 rounded-full bg-[#0038FF]/10 flex items-center justify-center mx-auto mb-4">
               <Mail className="w-7 h-7 text-[#0038FF]" />
@@ -823,14 +823,14 @@ function LoginPromptModal({ open, onClose }: { open: boolean; onClose: () => voi
 
             <div className="flex flex-col gap-2">
               <button
-                onClick={() => signIn("google", { callbackUrl: "/" })}
-                className="w-full flex items-center justify-center gap-2 bg-[#0038FF] text-white py-3 rounded-lg font-medium text-sm hover:bg-[#0030DB] transition-colors"
+                onClick={() => signIn("google", { callbackUrl: "https://kookiez-kappa.vercel.app/" })}
+                className="w-full flex items-center justify-center gap-2 bg-[#0038FF] text-white py-3 rounded-2xl font-medium text-sm hover:bg-[#0030DB] transition-colors"
               >
                 Masuk dengan Google
               </button>
               <button
                 onClick={onClose}
-                className="w-full text-[#1A1A1E]/50 py-2 rounded-lg font-medium text-sm hover:text-[#1A1A1E] transition-colors"
+                className="w-full text-[#1A1A1E]/50 py-2 rounded-2xl font-medium text-sm hover:text-[#1A1A1E] transition-colors"
               >
                 Batal
               </button>
@@ -916,7 +916,7 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
                 onClick={() => signOut({ callbackUrl: "/" })}
                 aria-label="Keluar"
                 title="Keluar"
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-[#1A1A1E]/50 hover:text-[#1A1A1E] hover:bg-[#1A1A1E]/5 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-2xl text-[#1A1A1E]/50 hover:text-[#1A1A1E] hover:bg-[#1A1A1E]/5 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -924,13 +924,13 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
           )}
           <LangToggle />
           {session?.user?.role === "admin" && (
-            <Link href="/admin" className="border border-[#1A1A1E]/15 px-3 py-2 rounded-md text-xs font-medium text-[#1A1A1E]/70 hover:text-[#1A1A1E] hover:border-[#1A1A1E]/35 transition-colors">
+            <Link href="/admin" className="border border-[#1A1A1E]/15 px-3 py-2 rounded-xl text-xs font-medium text-[#1A1A1E]/70 hover:text-[#1A1A1E] hover:border-[#1A1A1E]/35 transition-colors">
               Admin
             </Link>
           )}
           <button
             onClick={onOrder}
-            className="bg-[#0038FF] text-white font-medium px-4 py-2 rounded-lg text-sm hover:bg-[#0030DB] transition-colors"
+            className="bg-[#0038FF] text-white font-medium px-4 py-2 rounded-2xl text-sm hover:bg-[#0030DB] transition-colors"
           >
             {t("nav_order")}
           </button>
@@ -1000,7 +1000,7 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
                   onOrder();
                   setOpen(false);
                 }}
-                className="bg-[#0038FF] text-white font-medium px-4 py-2 rounded-lg text-sm hover:bg-[#0030DB] transition-colors w-fit"
+                className="bg-[#0038FF] text-white font-medium px-4 py-2 rounded-2xl text-sm hover:bg-[#0030DB] transition-colors w-fit"
               >
                 {t("nav_order")}
               </button>
@@ -1039,8 +1039,8 @@ function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult:
           </h1>
           <p className="mt-7 max-w-lg text-base leading-relaxed text-[#1A1A1E]/60 sm:text-lg">{t("hero_desc")}</p>
           <div className="mt-9 flex flex-wrap items-center gap-3">
-            <button onClick={onOrder} className="flex items-center gap-2 rounded-lg bg-[#0038FF] px-6 py-3.5 font-medium text-white transition-all hover:-translate-y-0.5 hover:bg-[#0030DB] active:translate-y-0">{t("hero_cta")} <ArrowRight className="h-4 w-4" /></button>
-            <button onClick={onConsult} className="rounded-lg border border-[#1A1A1E]/20 px-5 py-3.5 font-medium text-[#1A1A1E] transition-colors hover:border-[#0038FF] hover:text-[#0038FF]">{t("hero_consult_cta")}</button>
+            <button onClick={onOrder} className="flex items-center gap-2 rounded-2xl bg-[#0038FF] px-6 py-3.5 font-medium text-white transition-all hover:-translate-y-0.5 hover:bg-[#0030DB] active:translate-y-0">{t("hero_cta")} <ArrowRight className="h-4 w-4" /></button>
+            <button onClick={onConsult} className="rounded-2xl border border-[#1A1A1E]/20 px-5 py-3.5 font-medium text-[#1A1A1E] transition-colors hover:border-[#0038FF] hover:text-[#0038FF]">{t("hero_consult_cta")}</button>
             <button onClick={() => workRef.current?.scrollIntoView({ behavior: "smooth" })} className="px-2 py-3.5 font-medium text-[#1A1A1E]/60 transition-colors hover:text-[#1A1A1E]">{t("hero_cta_secondary")}</button>
           </div>
           <div className="mt-12 grid max-w-xl grid-cols-3 border-t border-[#1A1A1E]/10 pt-6 text-sm">
@@ -1074,14 +1074,12 @@ function AvailabilityBanner() {
   const progress = settings.availability === "available" ? "28%" : settings.availability === "limited" ? "68%" : "100%";
   return (
     <section className="mx-auto max-w-7xl px-5 pb-16 sm:px-8">
-      <div className="grid overflow-hidden rounded-xl border border-[#1A1A1E]/10 bg-white shadow-[0_16px_40px_rgba(26,26,30,0.06)] sm:grid-cols-[1.25fr_.75fr]">
-        <div className="p-6 sm:p-8">
-          <div className="flex items-start justify-between gap-4"><div><p className="font-mono text-[10px] tracking-[.2em] text-[#0038FF]">KAPASITAS MINGGU INI</p><h2 className="mt-3 font-heading text-2xl tracking-tight text-[#1A1A1E] sm:text-3xl">Mulai dari ide, kami bantu sampai jadi.</h2></div><span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${tone}`}>{label}</span></div>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-[#1A1A1E]/60">{settings.note} Cek antrean sebelum mengirim brief agar prosesnya tetap nyaman dan terukur.</p>
-          <div className="mt-7 h-2 overflow-hidden rounded-full bg-[#1A1A1E]/8"><div className="h-full rounded-full bg-[#0038FF] transition-all duration-500" style={{ width: progress }} /></div>
-          <div className="mt-2 flex justify-between text-[11px] text-[#1A1A1E]/45"><span>Antrean berjalan</span><span>{settings.availability === "closed" ? "Belum menerima order baru" : "Masih bisa menerima order"}</span></div>
+      <div className="rounded-2xl border border-[#1A1A1E]/10 bg-white p-5 shadow-[0_16px_40px_rgba(26,26,30,0.06)] sm:p-7">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div><p className="font-mono text-[10px] tracking-[.2em] text-[#0038FF]">KAPASITAS MINGGU INI</p><h2 className="mt-2 font-heading text-2xl tracking-tight text-[#1A1A1E] sm:text-3xl">Cek antrean sebelum pesan.</h2><p className="mt-2 max-w-xl text-sm leading-relaxed text-[#1A1A1E]/60">{settings.note}</p></div>
+          <span className={`shrink-0 self-start rounded-full px-3 py-1.5 text-xs font-semibold sm:self-center ${tone}`}>{label}</span>
         </div>
-        <div className="flex flex-col justify-between bg-[#E1F3FE] p-6 sm:p-8"><div><p className="font-mono text-[10px] tracking-[.2em] text-[#1F6C9F]">ALUR KERJA</p><p className="mt-4 text-2xl font-semibold tracking-tight text-[#1A1A1E]">Brief masuk, kami kabari.</p><p className="mt-2 text-sm leading-relaxed text-[#1A1A1E]/60">Isi kebutuhan singkat. Posisi antrean dan detail berikutnya akan dikirim setelah pesanan tercatat.</p></div><div className="mt-6 flex items-center gap-2 text-xs font-semibold text-[#0038FF]">Lihat kapasitas sebelum pesan <ArrowRight className="h-4 w-4" /></div></div>
+        <div className="mt-6 flex items-center justify-between gap-4"><div className="h-2 flex-1 overflow-hidden rounded-full bg-[#1A1A1E]/8"><div className="h-full rounded-full bg-[#0038FF] transition-all duration-500" style={{ width: progress }} /></div><span className="text-xs font-semibold text-[#1A1A1E]/55">{settings.availability === "closed" ? "Penuh" : "Bisa masuk"}</span></div>
       </div>
     </section>
   );
@@ -1089,7 +1087,7 @@ function AvailabilityBanner() {
 
 function ServicePackages({ onOrder, onConsult }: { onOrder: () => void; onConsult: () => void }) {
   const services = useServices();
-  return <section className="max-w-6xl mx-auto px-6 -mt-6 pb-20"><div className="max-w-xl mb-10"><p className="font-mono text-xs tracking-widest text-[#0038FF] mb-2">LAYANAN</p><h2 className="font-heading text-4xl tracking-tight">Pilih paket yang pas.</h2><p className="text-sm leading-relaxed text-[#1A1A1E]/55 mt-3">Harga awal transparan, ruang lingkup jelas, dan konsultasi bisa dipisahkan dari pesanan.</p></div><div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">{services.map((service, index) => { const Icon = service.icon; const consult = service.id === "konsultasi"; return <motion.article key={service.id} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .25 }} transition={{ delay: index * .06, duration: .45 }} className="border border-[#1A1A1E]/10 bg-white rounded-lg p-6 flex flex-col min-h-56"><Icon className="w-5 h-5 text-[#0038FF]" /><h3 className="font-semibold mt-8">{service.title}</h3><p className="text-sm leading-relaxed text-[#1A1A1E]/55 mt-2">{service.desc}</p><p className="font-mono text-xs text-[#1A1A1E]/45 mt-5">{consult ? "Mulai dari diskusi singkat" : "Mulai dari Rp 25.000"}</p><button onClick={consult ? onConsult : onOrder} className="mt-auto pt-5 text-left text-sm font-semibold text-[#0038FF]">{consult ? "Atur konsultasi" : "Pesan layanan"}</button></motion.article>; })}</div></section>;
+  return <section className="max-w-6xl mx-auto px-6 -mt-6 pb-20"><div className="max-w-xl mb-10"><p className="font-mono text-xs tracking-widest text-[#0038FF] mb-2">LAYANAN</p><h2 className="font-heading text-4xl tracking-tight">Pilih paket yang pas.</h2><p className="text-sm leading-relaxed text-[#1A1A1E]/55 mt-3">Harga awal transparan, ruang lingkup jelas, dan konsultasi bisa dipisahkan dari pesanan.</p></div><div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">{services.map((service, index) => { const Icon = service.icon; const consult = service.id === "konsultasi"; return <motion.article key={service.id} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .25 }} transition={{ delay: index * .06, duration: .45 }} className="border border-[#1A1A1E]/10 bg-white rounded-2xl p-6 flex flex-col min-h-56"><Icon className="w-5 h-5 text-[#0038FF]" /><h3 className="font-semibold mt-8">{service.title}</h3><p className="text-sm leading-relaxed text-[#1A1A1E]/55 mt-2">{service.desc}</p><p className="font-mono text-xs text-[#1A1A1E]/45 mt-5">{consult ? "Mulai dari diskusi singkat" : "Mulai dari Rp 25.000"}</p><button onClick={consult ? onConsult : onOrder} className="mt-auto pt-5 text-left text-sm font-semibold text-[#0038FF]">{consult ? "Atur konsultasi" : "Pesan layanan"}</button></motion.article>; })}</div></section>;
 }
 
 function TestimonialsSection() {
@@ -1111,12 +1109,12 @@ function ConsultationModal({ open, onClose }: { open: boolean; onClose: () => vo
   return (
     <AnimatePresence>
       {open && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-50 bg-[#1A1A1E]/40 backdrop-blur-sm flex items-center justify-center p-6">
-        <motion.div initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 18, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-[#FBFBFA] border border-[#1A1A1E]/10 rounded-xl max-w-md w-full p-7">
+        <motion.div initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 18, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-[#FBFBFA] border border-[#1A1A1E]/10 rounded-2xl max-w-md w-full p-7">
           <div className="flex justify-between items-start gap-4 mb-5"><div><p className="font-mono text-[10px] tracking-widest text-[#0038FF]">KONSULTASI DESAIN</p><h2 className="font-heading text-3xl leading-none mt-2">Cari arah sebelum mulai.</h2></div><button onClick={onClose} aria-label="Tutup"><X className="w-5 h-5 text-[#1A1A1E]/45" /></button></div>
           <p className="text-sm leading-relaxed text-[#1A1A1E]/55 mb-5">Form ini hanya untuk diskusi awal. Tidak membuat pesanan atau pembayaran.</p>
-          <label className="block text-sm font-medium mb-2">Nama kamu</label><input value={name} onChange={(e) => setName(e.target.value)} className="w-full border border-[#1A1A1E]/15 bg-white rounded-md px-3 py-3 text-sm focus:outline-none focus:border-[#0038FF]" placeholder="Nama panggilan" />
-          <label className="block text-sm font-medium mt-4 mb-2">Yang ingin dibahas</label><textarea value={need} onChange={(e) => setNeed(e.target.value)} rows={4} className="w-full border border-[#1A1A1E]/15 bg-white rounded-md px-3 py-3 text-sm resize-none focus:outline-none focus:border-[#0038FF]" placeholder="Contoh: perlu logo untuk usaha kopi, belum yakin gaya dan warna." />
-          <button disabled={!name.trim() || !need.trim()} onClick={submit} className="mt-5 w-full bg-[#1A1A1E] text-white rounded-md py-3 text-sm font-medium disabled:opacity-40">Mulai konsultasi via WhatsApp</button>
+          <label className="block text-sm font-medium mb-2">Nama kamu</label><input value={name} onChange={(e) => setName(e.target.value)} className="w-full border border-[#1A1A1E]/15 bg-white rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-[#0038FF]" placeholder="Nama panggilan" />
+          <label className="block text-sm font-medium mt-4 mb-2">Yang ingin dibahas</label><textarea value={need} onChange={(e) => setNeed(e.target.value)} rows={4} className="w-full border border-[#1A1A1E]/15 bg-white rounded-xl px-3 py-3 text-sm resize-none focus:outline-none focus:border-[#0038FF]" placeholder="Contoh: perlu logo untuk usaha kopi, belum yakin gaya dan warna." />
+          <button disabled={!name.trim() || !need.trim()} onClick={submit} className="mt-5 w-full bg-[#1A1A1E] text-white rounded-xl py-3 text-sm font-medium disabled:opacity-40">Mulai konsultasi via WhatsApp</button>
         </motion.div>
       </motion.div>}
     </AnimatePresence>
@@ -1140,7 +1138,7 @@ function WorkLightbox({ item, onClose }: { item: DisplayWorkItem | null; onClose
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-xl max-w-2xl w-full overflow-hidden max-h-[90vh] flex flex-col"
+        className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] flex flex-col"
       >
         {/* Container Gambar (Size Asli & Uncropped) */}
         <div 
@@ -1170,7 +1168,7 @@ function WorkLightbox({ item, onClose }: { item: DisplayWorkItem | null; onClose
           </button>
 
           {/* Badge ID */}
-          <span className="absolute bottom-3 left-4 font-mono text-xs text-white bg-black/50 px-2.5 py-1 rounded-md backdrop-blur-sm z-10">
+          <span className="absolute bottom-3 left-4 font-mono text-xs text-white bg-black/50 px-2.5 py-1 rounded-xl backdrop-blur-sm z-10">
             #{typeof item.id === "number" ? String(item.id).padStart(3, "0") : "CUSTOM"}
           </span>
         </div>
@@ -1248,7 +1246,7 @@ function WorkSection({ refProp, onOrder }: { refProp: RefObject<HTMLElement>; on
           <button
             key={w.id}
             onClick={() => setActive(w)}
-            className="group text-left rounded-lg border border-[#1A1A1E]/10 overflow-hidden hover:border-[#1A1A1E]/25 transition-colors"
+            className="group text-left rounded-2xl border border-[#1A1A1E]/10 overflow-hidden hover:border-[#1A1A1E]/25 transition-colors"
           >
             <div className="h-40 relative overflow-hidden bg-cover bg-center" style={{ backgroundColor: w.hue, backgroundImage: w.image ? `url(${w.image})` : undefined }}>
               <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors flex items-center justify-center">
@@ -1321,13 +1319,13 @@ function Footer({ onOrder }: { onOrder: () => void }) {
             href={waLink("Halo Kookiez, aku mau tanya-tanya soal jasa desain")}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-2 border border-[#1A1A1E]/15 text-[#1A1A1E] font-medium px-5 py-3 rounded-lg hover:border-[#1A1A1E]/30 transition-colors"
+            className="flex items-center gap-2 border border-[#1A1A1E]/15 text-[#1A1A1E] font-medium px-5 py-3 rounded-2xl hover:border-[#1A1A1E]/30 transition-colors"
           >
             <MessageCircle className="w-4 h-4" style={{ color: "#25D366" }} /> {t("nav_cs")}
           </a>
           <button
             onClick={onOrder}
-            className="flex items-center gap-2 bg-[#1A1A1E] text-white font-medium px-5 py-3 rounded-lg hover:bg-[#1A1A1E]/85 transition-colors"
+            className="flex items-center gap-2 bg-[#1A1A1E] text-white font-medium px-5 py-3 rounded-2xl hover:bg-[#1A1A1E]/85 transition-colors"
           >
             {t("nav_order")} <ArrowRight className="w-4 h-4" />
           </button>

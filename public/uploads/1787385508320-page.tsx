@@ -33,7 +33,7 @@ export default function LoginPage() {
         <h1 className="font-heading text-2xl font-semibold mb-6">Masuk</h1>
 
         <button
-          onClick={() => signIn("google", { callbackUrl: "/" })}
+          onClick={() => signIn("google", { callbackUrl: "https://kookiez-kappa.vercel.app/" })}
           className="w-full flex items-center justify-center gap-2 border border-[#1A1A1E]/15 bg-white py-3 rounded-lg text-sm font-medium hover:bg-[#1A1A1E]/5 transition-colors mb-4"
         >
           Masuk dengan Google
