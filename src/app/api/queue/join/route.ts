@@ -71,12 +71,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Queue is full. No slots available." }, { status: 409 });
     }
 
-    // Keep the denormalized counter informational only. Capacity is always based on orders.
-    await settingsCollection.updateOne(
-      { key: "global" },
-      { $set: { activeSlots: activeCount + 1, updatedAt: new Date() } }
-    );
-
     const reservedCount = activeCount + 1;
     const queuePosition = reservedCount;
     const orderCode = generateOrderCode();
@@ -106,7 +100,14 @@ export async function POST(req: NextRequest) {
       throw insertError;
     }
 
-    const updatedActiveCount = activeCount;
+    // Recount after the insert so every client receives the same source-of-truth value.
+    const updatedActiveCount = await ordersCollection.countDocuments({
+      status: { $in: ["pending", "progress"] },
+    });
+    await settingsCollection.updateOne(
+      { key: "global" },
+      { $set: { activeSlots: updatedActiveCount, updatedAt: new Date() } }
+    );
 
     sseBroadcaster.broadcast({
       type: "new_order",
