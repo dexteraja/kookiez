@@ -1027,9 +1027,9 @@ function Real3DScene() {
     const gl = renderer.gl;
     gl.clearColor(0, 0, 0, 0);
 
-    // Kamera dimundurkan (Z = 5.2) agar seluruh objek muat tanpa terpotong
-    const camera = new Camera(gl, { fov: 35, near: 0.1, far: 20 });
-    camera.position.set(0, 0, 5.2);
+    // Kamera dimundurkan agar jangkauan pandang lebih luas untuk full screen
+    const camera = new Camera(gl, { fov: 35, near: 0.1, far: 50 });
+    camera.position.set(0, 0, 10.0);
     camera.lookAt([0, 0, 0]);
 
     const scene = new Transform();
@@ -1073,32 +1073,32 @@ function Real3DScene() {
     const makeProgram = (color: [number, number, number], dark: [number, number, number]) =>
       new Program(gl, { vertex, fragment, uniforms: { uColor: { value: color }, uColorDark: { value: dark } } });
 
-    // 1. KUBUS BIRU (Posisi digeser agak kiri & dikecilkan sedikit)
+    // 1. KUBUS BIRU - Disebar ke kanan atas
     const cube = new Mesh(gl, {
       geometry: new Box(gl, { width: 1, height: 1, depth: 1 }),
       program: makeProgram([0.2, 0.45, 1.0], [0.0, 0.1, 0.4]),
     });
-    cube.position.set(-1.1, 0.1, 0);
-    cube.scale.set(0.65, 0.65, 0.65);
+    cube.position.set(4.5, 2.5, -2.0); // Posisi (X: kanan, Y: atas, Z: kedalaman)
+    cube.scale.set(1.4, 1.4, 1.4);
     cube.setParent(scene);
 
-    // 2. CINCIN BIRU (Posisi kanan bawah)
+    // 2. CINCIN BIRU - Disebar ke kanan bawah
     const ring = new Mesh(gl, {
-      geometry: new Torus(gl, { radius: 0.55, tube: 0.18, radialSegments: 32, tubularSegments: 64 }),
+      geometry: new Torus(gl, { radius: 0.6, tube: 0.2, radialSegments: 32, tubularSegments: 64 }),
       program: makeProgram([0.15, 0.5, 1.0], [0.0, 0.1, 0.5]),
     });
-    ring.position.set(1.0, -0.3, -0.2);
+    ring.position.set(3.5, -2.5, 1.0);
     ring.rotation.x = Math.PI / 2.2;
+    ring.scale.set(1.5, 1.5, 1.5);
     ring.setParent(scene);
 
-    // 3. PENSIL (Ditengah dengan skala pas)
+    // 3. PENSIL - Di bagian tengah condong ke kanan (fokus utama)
     const pencil = new Transform();
-    pencil.position.set(0.0, -0.1, 0.4);
-    pencil.rotation.z = -0.4;
-    pencil.scale.set(0.65, 0.65, 0.65);
+    pencil.position.set(2.0, 0.0, 2.5);
+    pencil.rotation.z = -0.5;
+    pencil.scale.set(1.8, 1.8, 1.8); // Diperbesar
     pencil.setParent(scene);
 
-    // Badan Pensil
     const pencilBody = new Mesh(gl, {
       geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 1.1, radialSegments: 32 }),
       program: makeProgram([1.0, 0.72, 0.15], [0.55, 0.3, 0.0]),
@@ -1106,7 +1106,6 @@ function Real3DScene() {
     pencilBody.position.y = 0.2;
     pencilBody.setParent(pencil);
 
-    // Kayu
     const pencilWood = new Mesh(gl, {
       geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.04, height: 0.4, radialSegments: 32 }),
       program: makeProgram([0.9, 0.75, 0.6], [0.5, 0.35, 0.2]),
@@ -1114,7 +1113,6 @@ function Real3DScene() {
     pencilWood.position.y = -0.55;
     pencilWood.setParent(pencil);
     
-    // Mata Pensil
     const pencilLead = new Mesh(gl, {
       geometry: new Cylinder(gl, { radiusTop: 0.04, radiusBottom: 0.0, height: 0.15, radialSegments: 32 }),
       program: makeProgram([0.15, 0.15, 0.15], [0.02, 0.02, 0.02]),
@@ -1122,7 +1120,6 @@ function Real3DScene() {
     pencilLead.position.y = -0.825;
     pencilLead.setParent(pencil);
 
-    // Besi Ring
     const pencilMetal = new Mesh(gl, {
       geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 0.15, radialSegments: 32 }),
       program: makeProgram([0.8, 0.8, 0.85], [0.4, 0.4, 0.45]),
@@ -1130,7 +1127,6 @@ function Real3DScene() {
     pencilMetal.position.y = 0.825;
     pencilMetal.setParent(pencil);
 
-    // Penghapus
     const pencilEraser = new Mesh(gl, {
       geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 0.25, radialSegments: 32 }),
       program: makeProgram([1.0, 0.6, 0.65], [0.6, 0.2, 0.25]),
@@ -1147,17 +1143,18 @@ function Real3DScene() {
     const render = (time: number) => {
       const t = time * 0.001;
 
+      // Animasi melayang masing-masing objek
       cube.rotation.x = t * 0.35;
       cube.rotation.y = t * 0.5;
-      cube.position.y = 0.1 + Math.sin(t * 0.9) * 0.08;
+      cube.position.y = 2.5 + Math.sin(t * 0.9) * 0.15;
 
       ring.rotation.z = t * 0.3;
-      ring.position.y = -0.3 + Math.sin(t * 0.8 + 1.4) * 0.08;
+      ring.position.y = -2.5 + Math.sin(t * 0.8 + 1.4) * 0.15;
 
       pencil.rotation.y = t * 0.5;
-      pencil.position.y = -0.1 + Math.sin(t * 1.1 + 0.6) * 0.08;
+      pencil.position.y = 0.0 + Math.sin(t * 1.1 + 0.6) * 0.15;
 
-      scene.rotation.y = Math.sin(t * 0.18) * 0.1;
+      scene.rotation.y = Math.sin(t * 0.15) * 0.05; // Seluruh scene bergerak sangat lambat
 
       renderer.render({ scene, camera });
       frame = requestAnimationFrame(render);
@@ -1181,43 +1178,46 @@ function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult:
   const { t, lang } = useLang();
   const words = lang === "id" ? ["logo.", "banner.", "poster.", "stiker."] : ["logo.", "banner.", "poster.", "stickers."];
   const [i, setI] = useState(0);
+  
   useEffect(() => {
     const id = setInterval(() => setI((v) => (v + 1) % words.length), 1800);
     return () => clearInterval(id);
   }, [words.length]);
 
   return (
-    <section className="relative mx-auto max-w-7xl overflow-hidden px-5 pb-16 pt-8 sm:px-8 sm:pb-24 sm:pt-12">
-      <div className="absolute right-6 top-8 hidden h-24 w-24 rounded-full border border-[#0038FF]/20 sm:block" />
-      <div className="grid items-center gap-12 lg:grid-cols-[1fr_.85fr] lg:gap-8">
-        <div className="relative z-[1] max-w-2xl">
-          <p className="mb-5 font-mono text-xs tracking-[.22em] text-[#0038FF]">{t("hero_kicker")}</p>
-          <h1 className="max-w-2xl font-heading text-[clamp(2.65rem,5.8vw,5.35rem)] font-semibold leading-[.92] tracking-[-0.055em] text-[#1A1A1E]">
-            {t("hero_need")} {" "}
-            <span className="inline-block h-[.9em] overflow-hidden align-bottom text-[#0038FF]">
-              <AnimatePresence mode="wait">
-                <motion.span key={words[i]} initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -30, opacity: 0 }} transition={{ duration: 0.35 }} className="inline-block">{words[i]}</motion.span>
-              </AnimatePresence>
-            </span>
-            <br />
-            {t("hero_title_end")}
-          </h1>
-          <p className="mt-7 max-w-lg text-base leading-relaxed text-[#1A1A1E]/60 sm:text-lg">{t("hero_desc")}</p>
-          <div className="mt-9 flex flex-wrap items-center gap-3">
-            <button onClick={onOrder} className="flex items-center gap-2 rounded-2xl bg-[#0038FF] px-6 py-3.5 font-medium text-white transition-all hover:-translate-y-0.5 hover:bg-[#0030DB] active:translate-y-0">{t("hero_cta")} <ArrowRight className="h-4 w-4" /></button>
-            <button onClick={onConsult} className="rounded-2xl border border-[#1A1A1E]/20 px-5 py-3.5 font-medium text-[#1A1A1E] transition-colors hover:border-[#0038FF] hover:text-[#0038FF]">{t("hero_consult_cta")}</button>
-            <button onClick={() => workRef.current?.scrollIntoView({ behavior: "smooth" })} className="px-2 py-3.5 font-medium text-[#1A1A1E]/60 transition-colors hover:text-[#1A1A1E]">{t("hero_cta_secondary")}</button>
-          </div>
-          <div className="mt-12 grid max-w-xl grid-cols-3 border-t border-[#1A1A1E]/10 pt-6 text-sm">
-            <div><span className="block font-mono font-medium text-[#1A1A1E]">300+</span><span className="text-[#1A1A1E]/50">{t("hero_stat_done")}</span></div>
-            <div><span className="block font-mono font-medium text-[#1A1A1E]">4.9/5</span><span className="text-[#1A1A1E]/50">{t("hero_stat_rating")}</span></div>
-            <div><span className="block font-mono font-medium text-[#1A1A1E]">&lt;1 jam</span><span className="text-[#1A1A1E]/50">{t("hero_stat_response")}</span></div>
-          </div>
+    // 1. Mengubah struktur menjadi relatif dengan tinggi layar yang pas
+    <section className="relative mx-auto flex min-h-[90vh] max-w-7xl items-center overflow-hidden px-5 pb-16 pt-24 sm:px-8">
+      
+      {/* 2. BACKGROUND 3D - Memenuhi seluruh section di belakang teks */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <Real3DScene />
+      </div>
+
+      {/* 3. KONTEN TEKS - Diberi z-10 agar berada di atas canvas 3D */}
+      <div className="relative z-10 w-full max-w-2xl">
+        <p className="mb-5 font-mono text-xs tracking-[.22em] text-[#0038FF]">{t("hero_kicker")}</p>
+        <h1 className="max-w-2xl font-heading text-[clamp(2.65rem,5.8vw,5.35rem)] font-semibold leading-[.92] tracking-[-0.055em] text-[#1A1A1E]">
+          {t("hero_need")} {" "}
+          <span className="inline-block h-[.9em] overflow-hidden align-bottom text-[#0038FF]">
+            <AnimatePresence mode="wait">
+              <motion.span key={words[i]} initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -30, opacity: 0 }} transition={{ duration: 0.35 }} className="inline-block">{words[i]}</motion.span>
+            </AnimatePresence>
+          </span>
+          <br />
+          {t("hero_title_end")}
+        </h1>
+        <p className="mt-7 max-w-lg text-base leading-relaxed text-[#1A1A1E]/60 sm:text-lg">{t("hero_desc")}</p>
+        
+        <div className="mt-9 flex flex-wrap items-center gap-3">
+          <button onClick={onOrder} className="flex items-center gap-2 rounded-2xl bg-[#0038FF] px-6 py-3.5 font-medium text-white transition-all hover:-translate-y-0.5 hover:bg-[#0030DB] active:translate-y-0">{t("hero_cta")} <ArrowRight className="h-4 w-4" /></button>
+          <button onClick={onConsult} className="rounded-2xl border border-[#1A1A1E]/20 bg-white/50 backdrop-blur-sm px-5 py-3.5 font-medium text-[#1A1A1E] transition-colors hover:border-[#0038FF] hover:text-[#0038FF]">{t("hero_consult_cta")}</button>
+          <button onClick={() => workRef.current?.scrollIntoView({ behavior: "smooth" })} className="px-2 py-3.5 font-medium text-[#1A1A1E]/60 transition-colors hover:text-[#1A1A1E]">{t("hero_cta_secondary")}</button>
         </div>
-        <div className="hero-art flex min-h-[300px] items-center justify-center sm:min-h-[410px]" aria-label="Objek tiga dimensi identitas Kookiez">
-          <div className="relative h-[450px] w-full max-w-[500px]">
-  <Real3DScene />
-</div>
+        
+        <div className="mt-12 grid max-w-xl grid-cols-3 border-t border-[#1A1A1E]/10 pt-6 text-sm">
+          <div><span className="block font-mono font-medium text-[#1A1A1E]">300+</span><span className="text-[#1A1A1E]/50">{t("hero_stat_done")}</span></div>
+          <div><span className="block font-mono font-medium text-[#1A1A1E]">4.9/5</span><span className="text-[#1A1A1E]/50">{t("hero_stat_rating")}</span></div>
+          <div><span className="block font-mono font-medium text-[#1A1A1E]">&lt;1 jam</span><span className="text-[#1A1A1E]/50">{t("hero_stat_response")}</span></div>
         </div>
       </div>
     </section>
