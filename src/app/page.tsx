@@ -1371,7 +1371,7 @@ function WorkLightbox({ item, onClose }: { item: DisplayWorkItem | null; onClose
         className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] flex flex-col"
       >
         {/* Container Gambar (Size Asli & Uncropped) */}
-        <div 
+        <div
           className="relative w-full bg-[#1A1A1E]/5 flex items-center justify-center overflow-hidden shrink-0"
           style={{ backgroundColor: item.hue }}
         >

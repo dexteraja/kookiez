@@ -45,12 +45,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
         otp: { label: "OTP", type: "text" },
+        googleOtp: { label: "Google OTP", type: "text" },
       },
       async authorize(credentials) {
         const email = credentials?.email?.toString().trim().toLowerCase();
         const password = credentials?.password?.toString() ?? "";
         const otp = credentials?.otp?.toString().trim() ?? "";
         if (!email || !otp) return null;
+
+        if (credentials?.googleOtp?.toString() === "true") {
+          if (!(await consumeOtp(email, otp))) return null;
+          return { id: email, name: email.split("@")[0], email, role: isAdminEmail(email) ? "admin" as Role : "member" as Role };
+        }
         if (!(await consumeOtp(email, otp))) return null;
 
         if (isAdminEmail(email)) {

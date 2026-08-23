@@ -62,12 +62,20 @@ export default function AdminPage() {
   const [note, setNote] = useState("");
   const [workJson, setWorkJson] = useState("[]");
   const [workMessage, setWorkMessage] = useState("");
+  const [pricing, setPricing] = useState<Record<string, number | null>>({ hemat: 50000, standar: 150000, lengkap: 350000, borongan: null });
+  const [pricingMessage, setPricingMessage] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [updatingSlot, setUpdatingSlot] = useState(false);
   const [slotMessage, setSlotMessage] = useState("");
   const eventSourceRef = useRef<EventSource | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const savePricing = async () => {
+    setPricingMessage("Menyimpan...");
+    const res = await fetch("/api/admin/pricing", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pricing }) });
+    setPricingMessage(res.ok ? "Harga berhasil disimpan." : "Harga gagal disimpan.");
+  };
 
   useEffect(() => {
     if (authStatus === "unauthenticated") router.replace("/login");
@@ -292,6 +300,27 @@ export default function AdminPage() {
         </div>
 
         <h1 className="font-heading text-2xl font-semibold mb-6">Admin Dashboard</h1>
+
+        <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
+          <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">PRICE SETTINGS</p>
+          <h2 className="font-heading text-xl font-semibold mb-2">Atur estimasi harga</h2>
+          <p className="text-sm text-[#1A1A1E]/55 mb-5">Harga ini langsung dipakai kalkulator dan form pemesanan.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[["hemat", "Hemat"], ["standar", "Standar"], ["lengkap", "Paket Lengkap"], ["borongan", "Borongan / Custom"]].map(([id, label]) => (
+              <label key={id} className="grid gap-2 text-sm font-medium">
+                {label}
+                <div className="flex items-center gap-2">
+                  <span className="text-[#1A1A1E]/45">Rp</span>
+                  <input type="number" min="0" value={pricing[id] ?? ""} disabled={id === "borongan"} onChange={(e) => setPricing((current) => ({ ...current, [id]: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm focus:border-[#0038FF] focus:outline-none" />
+                </div>
+              </label>
+            ))}
+          </div>
+          <div className="mt-5 flex items-center gap-3">
+            <button onClick={savePricing} className="rounded-lg bg-[#0038FF] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0030DB]">Simpan harga</button>
+            {pricingMessage && <span className="text-xs text-[#1A1A1E]/55" role="status">{pricingMessage}</span>}
+          </div>
+        </section>
 
         {/* Sales snapshot */}
         <section className="mb-8 grid gap-3 sm:grid-cols-3">
