@@ -3,7 +3,7 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/lib/mongodb";
 import { verifyPassword } from "@/lib/password";
-import { consumeOtp } from "@/lib/otp";
+import { consumeOtp, createAndSendOtp } from "@/lib/otp";
 
 /* ------------------------------------------------------------------ */
 /*  Role admin — DEMO: daftar email & password di sini. Untuk          */
@@ -74,10 +74,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google" && user.email) {
+        const email = user.email.toLowerCase();
+        await createAndSendOtp(email);
+        return `/otp?provider=google&email=${encodeURIComponent(email)}`;
+      }
+      return true;
+    },
     async jwt({ token, user, account, trigger, session }) {
       // Saat baru saja berhasil login (Google atau Credentials)
       if (user) {
         const email = user.email;
+        token.otpVerified = account?.provider !== "google";
         // Google sudah memverifikasi kepemilikan akun. Email yang ada pada
         // allow-list langsung memperoleh role admin agar akses dashboard dan
         // tombol Admin konsisten setelah masuk.

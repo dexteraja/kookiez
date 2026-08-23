@@ -1069,13 +1069,15 @@ interface QueueSnapshot {
 
 function AvailabilityBanner() {
   const [queue, setQueue] = useState<QueueSnapshot | null>(null);
+  const [status, setStatus] = useState<"loading" | "live" | "offline">("loading");
   const sync = useCallback(async () => {
     try {
       const response = await fetch("/api/queue/settings", { cache: "no-store" });
-      if (!response.ok) return;
+      if (!response.ok) throw new Error("queue request failed");
       setQueue(await response.json());
+      setStatus("live");
     } catch {
-      // Keep the last known server snapshot while the connection recovers.
+      setStatus("offline");
     }
   }, []);
 
@@ -1111,20 +1113,17 @@ function AvailabilityBanner() {
 
   return (
     <section className="mx-auto max-w-7xl px-5 pb-16 sm:px-8">
-      <div className="rounded-2xl border border-[#1A1A1E]/10 bg-white p-5 shadow-[0_16px_40px_rgba(26,26,30,0.06)] sm:p-7">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="overflow-hidden rounded-[1.5rem] border border-[#1A1A1E]/10 bg-white shadow-[0_20px_60px_rgba(26,26,30,0.08)]">
+        <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1fr_280px] lg:items-center">
           <div>
-            <p className="font-mono text-[10px] tracking-[.2em] text-[#0038FF]">KAPASITAS MINGGU INI</p>
-            <h2 className="mt-2 font-heading text-2xl tracking-tight text-[#1A1A1E] sm:text-3xl">Cek antrean sebelum pesan.</h2>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-[#1A1A1E]/60">{queue?.note || "Memuat kapasitas terbaru dari server..."}</p>
+            <div className="flex items-center gap-2 text-xs font-semibold text-[#0038FF]"><span className={`h-2 w-2 rounded-full ${status === "live" ? "bg-[#346538]" : status === "offline" ? "bg-[#9F2F2D]" : "bg-[#956400]"}`} />{status === "live" ? "DATA TERBARU" : status === "offline" ? "SAMBUNGAN TERPUTUS" : "MEMUAT DATA"}</div>
+            <h2 className="mt-4 max-w-xl font-heading text-3xl tracking-tight text-[#1A1A1E] sm:text-4xl">Antrean terbuka untuk pesanan baru.</h2>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-[#1A1A1E]/60">{queue?.note || "Kami sedang mengambil kapasitas terbaru."}</p>
+            <div className="mt-7 h-3 overflow-hidden rounded-full bg-[#1A1A1E]/8"><div className="h-full rounded-full bg-[#0038FF] transition-all duration-500" style={{ width: `${percent}%` }} /></div>
+            <div className="mt-3 flex justify-between text-xs text-[#1A1A1E]/55"><span>{activeSlots} dari {maxSlots || "-"} slot terisi</span><span>{percent}% terpakai</span></div>
           </div>
-          <span className={`shrink-0 self-start rounded-full px-3 py-1.5 text-xs font-semibold sm:self-center ${tone}`}>{label}</span>
+          <div className="rounded-xl bg-[#F3F5FF] p-5"><p className="text-xs font-semibold text-[#1A1A1E]/55">STATUS PESANAN</p><p className="mt-3 font-heading text-4xl text-[#0038FF]">{queue ? availableSlots : "-"}</p><p className="mt-1 text-sm text-[#1A1A1E]/60">slot masih tersedia</p><span className={`mt-5 inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${tone}`}>{label}</span></div>
         </div>
-        <div className="mt-6 flex items-center gap-4">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#1A1A1E]/8"><div className="h-full rounded-full bg-[#0038FF] transition-all duration-500" style={{ width: `${percent}%` }} /></div>
-          <span className="whitespace-nowrap text-xs font-semibold text-[#1A1A1E]/55">{queue ? `${availableSlots} slot tersisa` : "Memuat..."}</span>
-        </div>
-        {queue && <p className="mt-3 text-xs text-[#1A1A1E]/45">{activeSlots} dari {maxSlots} slot sedang diproses</p>}
       </div>
     </section>
   );
