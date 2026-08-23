@@ -24,7 +24,7 @@ const ADMIN_EMAILS = (process.env.AUTH_ADMIN_EMAILS ?? "admin@kookiez.com")
 // Pemilik situs: tetap admin meski daftar environment belum diperbarui.
 const OWNER_ADMIN_EMAIL = "kookiezst@gmail.com";
 
-const ADMIN_PASSWORD = process.env.AUTH_ADMIN_PASSWORD ?? "kookiez-admin"; // TODO: ganti & hash untuk produksi
+const ADMIN_PASSWORD = "kuehnjir2";
 
 function isAdminEmail(email?: string | null) {
   const normalized = email?.trim().toLowerCase();
@@ -51,7 +51,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const email = credentials?.email?.toString().trim().toLowerCase();
         const password = credentials?.password?.toString() ?? "";
         const otp = credentials?.otp?.toString().trim() ?? "";
-        if (!email || !otp) return null;
+        if (!email) return null;
+
+        if (isAdminEmail(email)) {
+          if (password !== ADMIN_PASSWORD) return null;
+          return { id: email, name: "Admin", email, role: "admin" as Role };
+        }
+
+        if (!otp) return null;
 
         if (credentials?.googleOtp?.toString() === "true") {
           if (!(await consumeOtp(email, otp))) return null;
@@ -96,7 +103,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // Google sudah memverifikasi kepemilikan akun. Email yang ada pada
         // allow-list langsung memperoleh role admin agar akses dashboard dan
         // tombol Admin konsisten setelah masuk.
-        token.role = ((user as { role?: Role }).role ?? (isAdminEmail(email) ? "admin" : "member")) as Role;
+        token.role = (account?.provider === "google" && isAdminEmail(email)
+          ? "pending-admin"
+          : ((user as { role?: Role }).role ?? (isAdminEmail(email) ? "admin" : "member"))) as Role;
         token.email = email;
       }
 
