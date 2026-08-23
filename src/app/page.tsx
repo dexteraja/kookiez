@@ -1225,7 +1225,6 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
 
 function Real3DScene() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [debugInfo, setDebugInfo] = useState<string>("");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1405,16 +1404,6 @@ function Real3DScene() {
         cube,
         ring
       );
-      // DEBUG SEMENTARA: tampilkan ukuran canvas & posisi objek yang
-      // benar-benar kehitung di device ini, biar tidak nebak-nebak lagi.
-      // Hapus blok ini setelah masalah ketemu.
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
-      setDebugInfo(
-        `canvas ${w}x${h} (aspect ${(w / Math.max(h, 1)).toFixed(2)}) | ` +
-        `pencil x=${layout.pencil.x} y=${layout.pencil.y} scale=${layout.pencil.scale} | ` +
-        `camZ=${layout.cameraZ} fov=${layout.fov} | dpr=${window.devicePixelRatio}`
-      );
     };
 
     // window "resize" saja tidak cukup: di sebagian device ukuran section
@@ -1468,19 +1457,17 @@ function Real3DScene() {
   }, []);
 
   return (
-    <div className="relative h-full w-full">
-      <canvas
-        ref={canvasRef}
-        className="h-full w-full outline-none"
-        aria-label="Objek 3D: pensil, kubus, dan cincin"
-      />
-      {/* DEBUG SEMENTARA — hapus <div> ini setelah masalah posisi ketemu */}
-      {debugInfo && (
-        <div className="pointer-events-none absolute left-1 top-1 z-50 max-w-[90%] rounded bg-black/80 px-1.5 py-1 font-mono text-[9px] leading-tight text-lime-300">
-          {debugInfo}
-        </div>
-      )}
-    </div>
+    // absolute + inset-0 langsung ke wrapper terdekat (bukan mewarisi
+    // height:100% dari parent) — canvas jadi elemen replaced yang diberi
+    // ukuran eksplisit oleh browser sejak layout pass pertama, bukan
+    // menunggu resolusi rantai height:100% yang bisa gagal (fallback ke
+    // ukuran default 300x150) kalau parent-nya sempat 0-height saat
+    // flex/min-h di section induk belum settle.
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 h-full w-full outline-none"
+      aria-label="Objek 3D: pensil, kubus, dan cincin"
+    />
   );
 }
 
@@ -1882,20 +1869,20 @@ function Footer({ onOrder }: { onOrder: () => void }) {
           <p className="text-sm text-[#1A1A1E]/45 mt-1">{t("footer_tagline")}</p>
           <div className="flex items-center gap-4 mt-4">
             <a
-              href="https://instagram.com/kookiez.id"
+              href="https://instagram.com/kookiez.idn"
               target="_blank"
               rel="noreferrer"
               aria-label="Instagram"
               className="flex items-center gap-1.5 text-xs text-[#1A1A1E]/45 hover:text-[#0038FF] transition-colors"
             >
-              <Instagram className="w-4 h-4" /> @kookiez.id
+              <Instagram className="w-4 h-4" /> @kookiez.idn
             </a>
             <a
-              href="mailto:hello@kookiez.id"
+              href="mailto:hello@kookiez.idn"
               aria-label="Email"
               className="flex items-center gap-1.5 text-xs text-[#1A1A1E]/45 hover:text-[#0038FF] transition-colors"
             >
-              <Mail className="w-4 h-4" /> hello@kookiez.id
+              <Mail className="w-4 h-4" /> hello@kookiez.idn
             </a>
           </div>
         </div>
