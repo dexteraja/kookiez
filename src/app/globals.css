@@ -30,7 +30,7 @@ body {
 .hero-art {
   position: relative;
   isolation: isolate;
-  perspective: 1100px;
+  perspective: 1200px;
 }
 
 .hero-art::before {
@@ -38,7 +38,8 @@ body {
   position: absolute;
   inset: 15% 7% 8% 12%;
   border: 1px solid rgba(26, 26, 30, 0.12);
-  transform: rotate(-5deg);
+  border-radius: 50%;
+  transform: rotate(-9deg) rotateX(62deg);
   z-index: -1;
 }
 
@@ -47,7 +48,8 @@ body {
   width: min(20rem, 76vw);
   height: 21rem;
   transform-style: preserve-3d;
-  transform: rotateX(3deg) rotateY(-8deg);
+  transform: rotateX(7deg) rotateY(-14deg) rotateZ(-2deg);
+  filter: drop-shadow(18px 24px 18px rgba(26, 26, 30, 0.12));
 }
 
 .brand-card {
@@ -55,18 +57,21 @@ body {
   width: 12rem;
   height: 15rem;
   border: 1px solid rgba(26, 26, 30, 0.2);
+  border-radius: 14px;
   transform-style: preserve-3d;
+  box-shadow: inset 12px 0 0 rgba(255, 255, 255, 0.22), inset -6px -8px 0 rgba(26, 26, 30, 0.04);
 }
 
 .brand-card::after {
   content: "";
   position: absolute;
-  top: 7px;
-  right: -8px;
-  width: 7px;
-  height: calc(100% - 7px);
+  top: 10px;
+  right: -11px;
+  width: 10px;
+  height: calc(100% - 10px);
   background: #d5e8f1;
   border: 1px solid rgba(26, 26, 30, 0.16);
+  border-radius: 0 7px 7px 0;
   transform: skewY(-45deg);
   transform-origin: left top;
 }
@@ -74,22 +79,27 @@ body {
 .brand-card::before {
   content: "";
   position: absolute;
-  left: 7px;
-  bottom: -8px;
-  width: calc(100% - 7px);
-  height: 7px;
+  left: 10px;
+  bottom: -11px;
+  width: calc(100% - 10px);
+  height: 10px;
   background: #c5d9c6;
   border: 1px solid rgba(26, 26, 30, 0.16);
+  border-radius: 0 0 7px 7px;
   transform: skewX(-45deg);
   transform-origin: left top;
 }
 
-.brand-card--back { background: #edf3ec; transform: rotate(-12deg) translate3d(14px, 23px, -45px); }
-.brand-card--main { background: #e1f3fe; transform: rotate(8deg) translate3d(65px, 2px, 40px); }
-.brand-tile { position: absolute; left: 7px; top: 20px; width: 5rem; height: 5rem; background: #fbf3db; border: 1px solid rgba(26, 26, 30, 0.2); transform: rotate(-12deg) translateZ(90px); }
-.brand-orbit { position: absolute; border: 1px solid rgba(26, 26, 30, 0.16); border-radius: 50%; transform: rotateX(68deg) rotateZ(-16deg); }
+.brand-card--back { background: #edf3ec; transform: rotate(-15deg) translate3d(8px, 26px, -70px); }
+.brand-card--main { background: #e1f3fe; transform: rotate(8deg) translate3d(65px, 2px, 55px); }
+.brand-tile { position: absolute; left: 2px; top: 18px; width: 5rem; height: 5rem; background: #fbf3db; border: 1px solid rgba(26, 26, 30, 0.2); border-radius: 12px; transform: rotate(-12deg) translateZ(110px); box-shadow: 10px 12px 0 rgba(26, 26, 30, 0.06); }
+.brand-orbit { position: absolute; border: 1px solid rgba(26, 26, 30, 0.16); border-radius: 50%; transform: rotateX(68deg) rotateZ(-16deg) translateZ(-20px); }
 .brand-orbit--one { width: 16rem; height: 16rem; left: 40px; top: 28px; }
-.brand-orbit--two { width: 20rem; height: 10rem; left: 4px; top: 84px; transform: rotateX(70deg) rotateZ(17deg); }
+.brand-orbit--two { width: 20rem; height: 10rem; left: 4px; top: 84px; transform: rotateX(70deg) rotateZ(17deg) translateZ(-20px); }
+
+@media (max-width: 640px) {
+  .brand-stage { transform: scale(.82) rotateX(7deg) rotateY(-14deg) rotateZ(-2deg); }
+}
 
 @media (prefers-reduced-motion: no-preference) {
   .hero-float { animation: hero-float 8s cubic-bezier(.45, 0, .55, 1) infinite; }
