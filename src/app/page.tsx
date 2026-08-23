@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type ChangeEvent, type DragEvent, type RefObject } from "react";
+import { useState, useRef, useEffect, useCallback, type ChangeEvent, type DragEvent, type RefObject } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Menu, X, ArrowRight, ArrowLeft, Check, ChevronDown,
@@ -18,7 +18,6 @@ import {
   type ServiceId, type BudgetId, type ServiceItem, type BudgetTier, type WorkItem, type TermItem,
 } from "@/lib/i18n";
 import { clearOrderDraft, getOrderDraft, saveOrderDraft } from "@/lib/orders";
-import { getSiteSettings, SITE_SETTINGS_UPDATED_EVENT, type SiteSettings } from "@/lib/site-settings";
 import { getCustomWorkItems, fetchPublishedPortfolio, PORTFOLIO_UPDATED_EVENT, type CustomWorkItem } from "@/lib/portfolio";
 
 /* ------------------------------------------------------------------ */
@@ -1061,25 +1060,71 @@ function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult:
   );
 }
 
+interface QueueSnapshot {
+  maxSlots: number;
+  activeSlots: number;
+  availableSlots: number;
+  note: string;
+}
+
 function AvailabilityBanner() {
-  const [settings, setSettings] = useState<SiteSettings>({ availability: "available", note: "Menerima proyek baru minggu ini." });
-  useEffect(() => {
-    const sync = () => setSettings(getSiteSettings());
-    sync();
-    window.addEventListener(SITE_SETTINGS_UPDATED_EVENT, sync);
-    return () => window.removeEventListener(SITE_SETTINGS_UPDATED_EVENT, sync);
+  const [queue, setQueue] = useState<QueueSnapshot | null>(null);
+  const sync = useCallback(async () => {
+    try {
+      const response = await fetch("/api/queue/settings", { cache: "no-store" });
+      if (!response.ok) return;
+      setQueue(await response.json());
+    } catch {
+      // Keep the last known server snapshot while the connection recovers.
+    }
   }, []);
-  const label = settings.availability === "available" ? "Slot tersedia" : settings.availability === "limited" ? "Slot terbatas" : "Antrean penuh";
-  const tone = settings.availability === "available" ? "bg-[#EDF3EC] text-[#346538]" : settings.availability === "limited" ? "bg-[#FBF3DB] text-[#956400]" : "bg-[#FDEBEC] text-[#9F2F2D]";
-  const progress = settings.availability === "available" ? "28%" : settings.availability === "limited" ? "68%" : "100%";
+
+  useEffect(() => {
+    sync();
+    const interval = window.setInterval(sync, 15000);
+    const events = new EventSource("/api/queue/stream");
+    const update = (event: MessageEvent) => {
+      try {
+        setQueue(JSON.parse(event.data));
+      } catch {
+        sync();
+      }
+    };
+    events.addEventListener("slot_update", update);
+    events.addEventListener("new_order", update);
+    events.addEventListener("queue_update", update);
+    events.onerror = () => events.close();
+    return () => {
+      window.clearInterval(interval);
+      events.close();
+    };
+  }, [sync]);
+
+  const activeSlots = queue?.activeSlots ?? 0;
+  const maxSlots = queue?.maxSlots ?? 0;
+  const availableSlots = queue?.availableSlots ?? 0;
+  const percent = maxSlots > 0 ? Math.min(100, Math.round((activeSlots / maxSlots) * 100)) : 0;
+  const isFull = maxSlots > 0 && availableSlots === 0;
+  const isLimited = !isFull && availableSlots <= 2;
+  const label = isFull ? "Antrean penuh" : isLimited ? "Slot terbatas" : "Slot tersedia";
+  const tone = isFull ? "bg-[#FDEBEC] text-[#9F2F2D]" : isLimited ? "bg-[#FBF3DB] text-[#956400]" : "bg-[#EDF3EC] text-[#346538]";
+
   return (
     <section className="mx-auto max-w-7xl px-5 pb-16 sm:px-8">
       <div className="rounded-2xl border border-[#1A1A1E]/10 bg-white p-5 shadow-[0_16px_40px_rgba(26,26,30,0.06)] sm:p-7">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div><p className="font-mono text-[10px] tracking-[.2em] text-[#0038FF]">KAPASITAS MINGGU INI</p><h2 className="mt-2 font-heading text-2xl tracking-tight text-[#1A1A1E] sm:text-3xl">Cek antrean sebelum pesan.</h2><p className="mt-2 max-w-xl text-sm leading-relaxed text-[#1A1A1E]/60">{settings.note}</p></div>
+          <div>
+            <p className="font-mono text-[10px] tracking-[.2em] text-[#0038FF]">KAPASITAS MINGGU INI</p>
+            <h2 className="mt-2 font-heading text-2xl tracking-tight text-[#1A1A1E] sm:text-3xl">Cek antrean sebelum pesan.</h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-[#1A1A1E]/60">{queue?.note || "Memuat kapasitas terbaru dari server..."}</p>
+          </div>
           <span className={`shrink-0 self-start rounded-full px-3 py-1.5 text-xs font-semibold sm:self-center ${tone}`}>{label}</span>
         </div>
-        <div className="mt-6 flex items-center justify-between gap-4"><div className="h-2 flex-1 overflow-hidden rounded-full bg-[#1A1A1E]/8"><div className="h-full rounded-full bg-[#0038FF] transition-all duration-500" style={{ width: progress }} /></div><span className="text-xs font-semibold text-[#1A1A1E]/55">{settings.availability === "closed" ? "Penuh" : "Bisa masuk"}</span></div>
+        <div className="mt-6 flex items-center gap-4">
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#1A1A1E]/8"><div className="h-full rounded-full bg-[#0038FF] transition-all duration-500" style={{ width: `${percent}%` }} /></div>
+          <span className="whitespace-nowrap text-xs font-semibold text-[#1A1A1E]/55">{queue ? `${availableSlots} slot tersisa` : "Memuat..."}</span>
+        </div>
+        {queue && <p className="mt-3 text-xs text-[#1A1A1E]/45">{activeSlots} dari {maxSlots} slot sedang diproses</p>}
       </div>
     </section>
   );

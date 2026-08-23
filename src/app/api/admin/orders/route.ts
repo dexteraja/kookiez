@@ -23,14 +23,14 @@ export async function GET() {
       .limit(100)
       .toArray();
 
-    const activeOrders = orders.filter(
-      (o) => o.status === "pending" || o.status === "progress"
-    );
+    const activeSlots = await db.collection("orders").countDocuments({
+      status: { $in: ["pending", "progress"] },
+    });
 
     return NextResponse.json({
       maxSlots,
-      activeSlots: activeOrders.length,
-      availableSlots: Math.max(0, maxSlots - activeOrders.length),
+      activeSlots,
+      availableSlots: Math.max(0, maxSlots - activeSlots),
       note: settings?.note ?? "",
       orders: orders.map((o) => ({
         code: o.code,
