@@ -57,7 +57,7 @@ export async function getPaymentSettings() {
 
 export async function savePaymentSettings(input: { onlinePaymentEnabled: boolean; whatsappCsNumber: string }) {
   const { db } = await connectToDatabase();
-  await db.collection("site_settings").updateOne({ _id: "global" }, { $set: { ...input, updatedAt: new Date() } }, { upsert: true });
+  await db.collection("site_settings").updateOne({ key: "global" }, { $set: { key: "global", ...input, updatedAt: new Date() } }, { upsert: true });
   return getPaymentSettings();
 }
 

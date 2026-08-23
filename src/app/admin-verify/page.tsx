@@ -18,11 +18,12 @@ export default function AdminVerifyPage() {
     router.replace("/login");
     return null;
   }
-  if (session?.user?.role === "admin") {
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  if (role === "admin") {
     router.replace("/admin");
     return null;
   }
-  if (session?.user?.role !== "pending-admin") {
+  if (role !== "pending-admin") {
     router.replace("/");
     return null;
   }
