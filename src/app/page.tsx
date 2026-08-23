@@ -576,6 +576,7 @@ function OrderModal({
   onSuccess: (data: SuccessData) => void;
 }) {
   const { t } = useLang();
+  const { data: session } = useSession();
   const budgetTiers = useBudgetTiers();
   const services = useServices();
   const [step, setStep] = useState(1);
