@@ -1029,7 +1029,8 @@ function Real3DScene() {
     gl.clearColor(0, 0, 0, 0);
 
     const camera = new Camera(gl, { fov: 32, near: 0.1, far: 20 });
-    camera.position.set(0, 0.2, 6.0); // Kamera sedikit dijauhkan agar objek muat
+    // Semakin KECIL angkanya (misal 3.2), objek akan makin BESAR/DEKAT
+camera.position.set(0, 0.1, 3.2); // Kamera sedikit dijauhkan agar objek muat
     camera.lookAt([0, 0, 0]);
 
     const scene = new Transform();
@@ -1085,7 +1086,7 @@ function Real3DScene() {
       program: makeProgram([0.2, 0.45, 1.0], [0.0, 0.1, 0.4]),
     });
     cube.position.set(-1.25, 0.3, 0);
-    cube.scale.set(0.8, 0.8, 0.8);
+   cube.scale.set(1.2, 1.2, 1.2);
     cube.setParent(scene);
 
     // 2. CINCIN KREATIVITAS (Segmen diperbanyak agar lebih mulus)
@@ -1101,7 +1102,7 @@ function Real3DScene() {
     const pencil = new Transform();
     pencil.position.set(0.1, 0.2, 0.6);
     pencil.rotation.z = -0.55;
-    pencil.scale.set(0.9, 0.9, 0.9);
+    pencil.scale.set(1.4, 1.4, 1.4);
     pencil.setParent(scene);
 
     // Badan Pensil (Kuning)
@@ -1221,13 +1222,9 @@ function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult:
           </div>
         </div>
         <div className="hero-art flex min-h-[300px] items-center justify-center sm:min-h-[410px]" aria-label="Objek tiga dimensi identitas Kookiez">
-          <div className="relative h-[300px] w-full max-w-[440px] overflow-hidden rounded-[2rem] border border-[#1A1A1E]/10 bg-[#E8F1FF] shadow-[0_24px_70px_rgba(0,56,255,0.16)]">
-            <Real3DScene />
-            <div className="pointer-events-none absolute inset-x-6 bottom-5 flex items-end justify-between text-[#1A1A1E]">
-              <span className="font-mono text-[10px] tracking-[.18em]">KOOKIEZ / 3D STUDY</span>
-              <span className="text-xs text-[#1A1A1E]/55">Shape your point of view.</span>
-            </div>
-          </div>
+          <div className="relative h-[450px] w-full max-w-[500px]">
+  <Real3DScene />
+</div>
         </div>
       </div>
     </section>
