@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/lib/mongodb";
 import { verifyPassword } from "@/lib/password";
+import { consumeOtp } from "@/lib/otp";
 
 /* ------------------------------------------------------------------ */
 /*  Role admin — DEMO: daftar email & password di sini. Untuk          */
@@ -43,11 +44,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        otp: { label: "OTP", type: "text" },
       },
       async authorize(credentials) {
         const email = credentials?.email?.toString().trim().toLowerCase();
         const password = credentials?.password?.toString() ?? "";
-        if (!email) return null;
+        const otp = credentials?.otp?.toString().trim() ?? "";
+        if (!email || !otp) return null;
+        if (!(await consumeOtp(email, otp))) return null;
 
         if (isAdminEmail(email)) {
           // Admin lewat form login juga wajib password admin yang benar.
