@@ -66,85 +66,92 @@ function getResponsive3DLayout(
 ): Responsive3DLayout {
   const aspect = width / Math.max(height, 1);
 
+  // Mobile portrait: objek diletakkan lebih rendah & di tengah,
+  // dengan skala sedang supaya tidak menabrak judul di atasnya.
   if (aspect < 0.6) {
     return {
-      cameraZ: 8.5,
-      fov: 38,
+      cameraZ: 9.5,
+      fov: 42,
 
       pencil: {
-        x: 1.25,
-        y: -0.65,
-        z: 2.2,
-        scale: 1.25,
+        x: 0.9,
+        y: -2.6,
+        z: 0,
+        scale: 1.6,
       },
 
       cube: {
-        x: 1.45,
-        y: 2.1,
-        z: -0.5,
-        scale: 0.75,
+        x: -1.3,
+        y: -3.2,
+        z: -0.6,
+        scale: 1.0,
       },
 
       ring: {
-        x: 1.3,
-        y: -2.25,
-        z: 0.8,
-        scale: 0.85,
+        x: 1.6,
+        y: -4.0,
+        z: 0.4,
+        scale: 1.15,
       },
     };
   }
 
+  // Tablet / layar sedang: geser ke kanan-bawah, cukup besar
+  // tapi masih memberi ruang untuk teks di kolom kiri.
   if (aspect < 1.15) {
     return {
-      cameraZ: 7.8,
-      fov: 36,
+      cameraZ: 9,
+      fov: 40,
 
       pencil: {
-        x: 1.8,
-        y: -0.3,
-        z: 2.4,
-        scale: 1.55,
+        x: 2.4,
+        y: -0.8,
+        z: 0.2,
+        scale: 2.1,
       },
 
       cube: {
-        x: 2.0,
-        y: 2.15,
-        z: -0.8,
-        scale: 0.95,
+        x: 3.4,
+        y: 1.6,
+        z: -0.4,
+        scale: 1.3,
       },
 
       ring: {
-        x: 1.8,
-        y: -2.35,
-        z: 1,
-        scale: 1.05,
+        x: 2.6,
+        y: -2.8,
+        z: 0.6,
+        scale: 1.5,
       },
     };
   }
 
+  // Desktop: komposisi besar di sisi kanan hero, cukup jauh dari
+  // kolom teks (yang dibatasi max-w-2xl) supaya berfungsi sebagai
+  // elemen background, bukan menimpa judul.
   return {
-    cameraZ: 7,
-    fov: 35,
+    cameraZ: 9,
+    fov: 42,
 
     pencil: {
-      x: 2.35,
-      y: -0.2,
-      z: 2.5,
-      scale: 2,
+      x: 3.2,
+      y: -0.4,
+      z: 0.3,
+      scale: 2.9,
     },
 
     cube: {
-      x: 2.8,
-      y: 2.2,
-      z: -1,
-      scale: 1.2,
+      x: 4.3,
+      y: 2.0,
+      z: -0.6,
+      scale: 1.6,
     },
 
     ring: {
-      x: 2.4,
-      y: -2.5,
-      z: 1,
-      scale: 1.4,
+      x: 3.0,
+      y: -2.6,
+      z: 0.6,
+      scale: 1.9,
     },
   };
 }
@@ -1449,8 +1456,17 @@ function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult:
     // 1. Mengubah struktur menjadi relatif dengan tinggi layar yang pas
     <section className="relative mx-auto flex min-h-[90vh] max-w-7xl items-center overflow-hidden px-5 pb-16 pt-24 sm:px-8">
       
-      {/* 2. BACKGROUND 3D - Memenuhi seluruh section di belakang teks */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
+      {/* 2. BACKGROUND 3D - Memenuhi seluruh section di belakang teks.
+          Diberi mask gradient supaya objek memudar ke arah kolom teks
+          (kiri) dan tetap penuh/terlihat jelas di sisi kanan sebagai
+          elemen background, bukan menimpa judul. */}
+      <div
+        className="absolute inset-0 z-0 pointer-events-none opacity-90"
+        style={{
+          maskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.35) 32%, rgba(0,0,0,0.9) 55%, black 70%)",
+          WebkitMaskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.35) 32%, rgba(0,0,0,0.9) 55%, black 70%)",
+        }}
+      >
         <Real3DScene />
       </div>
 
