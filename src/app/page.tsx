@@ -171,21 +171,21 @@ function applyResponsive3DLayout(
     layout.pencil.y,
     layout.pencil.z
   );
-  pencil.scale.setScalar(layout.pencil.scale);
+  pencil.scale.set(layout.pencil.scale, layout.pencil.scale, layout.pencil.scale);
 
   cube.position.set(
     layout.cube.x,
     layout.cube.y,
     layout.cube.z
   );
-  cube.scale.setScalar(layout.cube.scale);
+  cube.scale.set(layout.cube.scale, layout.cube.scale, layout.cube.scale);
 
   ring.position.set(
     layout.ring.x,
     layout.ring.y,
     layout.ring.z
   );
-  ring.scale.setScalar(layout.ring.scale);
+ ring.scale.set(layout.ring.scale, layout.ring.scale, layout.ring.scale);
 }
 
 function resizeResponsive3D(
