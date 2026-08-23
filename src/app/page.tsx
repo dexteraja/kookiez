@@ -1084,6 +1084,14 @@ function Real3DScene() {
     ring.rotation.x = Math.PI / 2.6;
     ring.setParent(scene);
 
+    const cone = new Mesh(gl, {
+      geometry: new Cylinder(gl, { radiusTop: 0, radiusBottom: 0.18, height: 0.34, radialSegments: 20 }),
+      program: makeProgram([0.16, 0.16, 0.19], [0.02, 0.02, 0.03]),
+    });
+    cone.position.set(-0.2, -0.28, 0.55);
+    cone.rotation.z = Math.PI;
+    cone.setParent(scene);
+
     const pencil = new Transform();
     pencil.position.set(0.05, 0.55, 0.6);
     pencil.rotation.z = -0.55;

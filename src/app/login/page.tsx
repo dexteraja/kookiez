@@ -24,6 +24,12 @@ export default function LoginPage() {
       return;
     }
     if (!register) {
+      const directLogin = await signIn("credentials", { email, password, otp: "", redirect: false });
+      if (directLogin?.ok) {
+        setLoading(false);
+        window.location.href = "/";
+        return;
+      }
       const response = await fetch("/api/auth/request-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
       const data = await response.json().catch(() => ({}));
       setLoading(false);
