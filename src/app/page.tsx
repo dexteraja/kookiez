@@ -1022,84 +1022,40 @@ function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult:
   }, [words.length]);
 
   return (
-    <section className="relative max-w-6xl mx-auto px-6 pt-10 pb-14 sm:pt-16 sm:pb-20">
-      <div className="absolute inset-x-6 top-4 h-px bg-[#1A1A1E]/10" />
-      <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-10 lg:gap-6 items-center">
-      <div>
-      <p className="font-mono text-xs tracking-widest text-[#0038FF] mb-5">{t("hero_kicker")}</p>
-      <h1 className="font-heading text-5xl sm:text-7xl text-[#1A1A1E] max-w-3xl leading-[.9] tracking-[-0.035em]">
-        {t("hero_need")}{" "}
-        <span className="inline-block relative h-[1em] align-bottom overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.span
-              key={words[i]}
-              initial={{ y: 24, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -24, opacity: 0 }}
-              transition={{ duration: 0.35 }}
-              className="text-[#0038FF] inline-block"
-            >
-              {words[i]}
-            </motion.span>
-          </AnimatePresence>
-        </span>
-        <br />
-        {t("hero_title_end")}
-      </h1>
-      <p className="text-base sm:text-lg text-[#1A1A1E]/55 max-w-xl mt-6 leading-relaxed">{t("hero_desc")}</p>
-      <div className="flex flex-wrap items-center gap-4 mt-9">
-        <button
-          onClick={onOrder}
-          className="flex items-center gap-2 bg-[#0038FF] text-white font-medium px-6 py-3.5 rounded-lg hover:bg-[#0030DB] transition-colors"
-        >
-          {t("hero_cta")} <ArrowRight className="w-4 h-4" />
-        </button>
-        <button
-          onClick={onConsult}
-          className="border border-[#1A1A1E]/20 text-[#1A1A1E] font-medium px-5 py-3.5 rounded-md hover:border-[#1A1A1E]/45 transition-colors"
-        >
-          {t("hero_consult_cta")}
-        </button>
-        <button
-          onClick={() => workRef.current?.scrollIntoView({ behavior: "smooth" })}
-          className="text-[#1A1A1E]/70 font-medium px-2 py-3.5 hover:text-[#1A1A1E] transition-colors"
-        >
-          {t("hero_cta_secondary")}
-        </button>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-12 pt-8 border-t border-[#1A1A1E]/10 text-sm">
-        <div>
-          <span className="font-mono font-medium text-[#1A1A1E]">300+</span>{" "}
-          <span className="text-[#1A1A1E]/50">{t("hero_stat_done")}</span>
-        </div>
-        <div>
-          <span className="font-mono font-medium text-[#1A1A1E]">4.9/5</span>{" "}
-          <span className="text-[#1A1A1E]/50">{t("hero_stat_rating")}</span>
-        </div>
-        <div>
-          <span className="font-mono font-medium text-[#1A1A1E]">&lt;1 jam</span>{" "}
-          <span className="text-[#1A1A1E]/50">{t("hero_stat_response")}</span>
-        </div>
-      </div>
-      </div>
-
-      <div className="hero-art min-h-[330px] sm:min-h-[420px] flex items-center justify-center" aria-label="Objek tiga dimensi identitas Kookiez">
-        <div className="hero-float brand-stage" aria-hidden="true">
-          <div className="brand-orbit brand-orbit--one" />
-          <div className="brand-orbit brand-orbit--two" />
-          <div className="brand-card brand-card--back" />
-          <div className="brand-card brand-card--main flex flex-col justify-between p-5">
-            <span className="text-[10px] font-semibold tracking-[.16em] text-[#1F6C9F]">KOOKIEZ / 26</span>
-            <div className="relative h-20 w-full">
-             {/* Dari w-48 h-16 (192px x 64px) ke w-64 h-24 (256px x 96px) */}
-<div className="relative w-64 h-24 bg-[#0038FF] [mask-image:url(/Kookiez.webp)] [mask-size:contain] [mask-repeat:no-repeat] [mask-position:left]"></div>
-            </div>
-            <span className="text-[11px] leading-snug text-[#1A1A1E]/55">Design with a point of view.</span>
+    <section className="relative mx-auto max-w-7xl overflow-hidden px-5 pb-16 pt-8 sm:px-8 sm:pb-24 sm:pt-12">
+      <div className="absolute right-6 top-8 hidden h-24 w-24 rounded-full border border-[#0038FF]/20 sm:block" />
+      <div className="grid items-center gap-12 lg:grid-cols-[1fr_.85fr] lg:gap-8">
+        <div className="relative z-[1] max-w-2xl">
+          <p className="mb-5 font-mono text-xs tracking-[.22em] text-[#0038FF]">{t("hero_kicker")}</p>
+          <h1 className="max-w-2xl font-heading text-[clamp(3.2rem,7vw,6.75rem)] font-semibold leading-[.88] tracking-[-0.06em] text-[#1A1A1E]">
+            {t("hero_need")} {" "}
+            <span className="inline-block h-[.9em] overflow-hidden align-bottom text-[#0038FF]">
+              <AnimatePresence mode="wait">
+                <motion.span key={words[i]} initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -30, opacity: 0 }} transition={{ duration: 0.35 }} className="inline-block">{words[i]}</motion.span>
+              </AnimatePresence>
+            </span>
+            <br />
+            {t("hero_title_end")}
+          </h1>
+          <p className="mt-7 max-w-lg text-base leading-relaxed text-[#1A1A1E]/60 sm:text-lg">{t("hero_desc")}</p>
+          <div className="mt-9 flex flex-wrap items-center gap-3">
+            <button onClick={onOrder} className="flex items-center gap-2 rounded-lg bg-[#0038FF] px-6 py-3.5 font-medium text-white transition-all hover:-translate-y-0.5 hover:bg-[#0030DB] active:translate-y-0">{t("hero_cta")} <ArrowRight className="h-4 w-4" /></button>
+            <button onClick={onConsult} className="rounded-lg border border-[#1A1A1E]/20 px-5 py-3.5 font-medium text-[#1A1A1E] transition-colors hover:border-[#0038FF] hover:text-[#0038FF]">{t("hero_consult_cta")}</button>
+            <button onClick={() => workRef.current?.scrollIntoView({ behavior: "smooth" })} className="px-2 py-3.5 font-medium text-[#1A1A1E]/60 transition-colors hover:text-[#1A1A1E]">{t("hero_cta_secondary")}</button>
           </div>
-          <div className="brand-tile flex items-center justify-center text-[10px] font-semibold tracking-[.16em] text-[#956400]">DKV</div>
+          <div className="mt-12 grid max-w-xl grid-cols-3 border-t border-[#1A1A1E]/10 pt-6 text-sm">
+            <div><span className="block font-mono font-medium text-[#1A1A1E]">300+</span><span className="text-[#1A1A1E]/50">{t("hero_stat_done")}</span></div>
+            <div><span className="block font-mono font-medium text-[#1A1A1E]">4.9/5</span><span className="text-[#1A1A1E]/50">{t("hero_stat_rating")}</span></div>
+            <div><span className="block font-mono font-medium text-[#1A1A1E]">&lt;1 jam</span><span className="text-[#1A1A1E]/50">{t("hero_stat_response")}</span></div>
+          </div>
         </div>
-      </div>
+        <div className="hero-art flex min-h-[300px] items-center justify-center sm:min-h-[410px]" aria-label="Objek tiga dimensi identitas Kookiez">
+          <div className="hero-float brand-stage" aria-hidden="true">
+            <div className="brand-orbit brand-orbit--one" /><div className="brand-orbit brand-orbit--two" /><div className="brand-card brand-card--back" />
+            <div className="brand-card brand-card--main flex flex-col justify-between p-5"><span className="text-[10px] font-semibold tracking-[.16em] text-[#1F6C9F]">KOOKIEZ / 26</span><div className="relative h-20 w-full"><div className="relative h-24 w-64 bg-[#0038FF] [mask-image:url(/Kookiez.webp)] [mask-position:left] [mask-repeat:no-repeat] [mask-size:contain]" /></div><span className="text-[11px] leading-snug text-[#1A1A1E]/55">Design with a point of view.</span></div>
+            <div className="brand-tile flex items-center justify-center text-[10px] font-semibold tracking-[.16em] text-[#956400]">DKV</div>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -1115,7 +1071,20 @@ function AvailabilityBanner() {
   }, []);
   const label = settings.availability === "available" ? "Slot tersedia" : settings.availability === "limited" ? "Slot terbatas" : "Antrean penuh";
   const tone = settings.availability === "available" ? "bg-[#EDF3EC] text-[#346538]" : settings.availability === "limited" ? "bg-[#FBF3DB] text-[#956400]" : "bg-[#FDEBEC] text-[#9F2F2D]";
-  return <section className="max-w-6xl mx-auto px-6 pb-8"><div className="border border-[#1A1A1E]/10 bg-white rounded-lg px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2"><span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone}`}>{label}</span><p className="text-sm text-[#1A1A1E]/60">{settings.note}</p></div></section>;
+  const progress = settings.availability === "available" ? "28%" : settings.availability === "limited" ? "68%" : "100%";
+  return (
+    <section className="mx-auto max-w-7xl px-5 pb-16 sm:px-8">
+      <div className="grid overflow-hidden rounded-xl border border-[#1A1A1E]/10 bg-white shadow-[0_16px_40px_rgba(26,26,30,0.06)] sm:grid-cols-[1.25fr_.75fr]">
+        <div className="p-6 sm:p-8">
+          <div className="flex items-start justify-between gap-4"><div><p className="font-mono text-[10px] tracking-[.2em] text-[#0038FF]">KAPASITAS MINGGU INI</p><h2 className="mt-3 font-heading text-2xl tracking-tight text-[#1A1A1E] sm:text-3xl">Mulai dari ide, kami bantu sampai jadi.</h2></div><span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${tone}`}>{label}</span></div>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-[#1A1A1E]/60">{settings.note} Cek antrean sebelum mengirim brief agar prosesnya tetap nyaman dan terukur.</p>
+          <div className="mt-7 h-2 overflow-hidden rounded-full bg-[#1A1A1E]/8"><div className="h-full rounded-full bg-[#0038FF] transition-all duration-500" style={{ width: progress }} /></div>
+          <div className="mt-2 flex justify-between text-[11px] text-[#1A1A1E]/45"><span>Antrean berjalan</span><span>{settings.availability === "closed" ? "Belum menerima order baru" : "Masih bisa menerima order"}</span></div>
+        </div>
+        <div className="flex flex-col justify-between bg-[#E1F3FE] p-6 sm:p-8"><div><p className="font-mono text-[10px] tracking-[.2em] text-[#1F6C9F]">ALUR KERJA</p><p className="mt-4 text-2xl font-semibold tracking-tight text-[#1A1A1E]">Brief masuk, kami kabari.</p><p className="mt-2 text-sm leading-relaxed text-[#1A1A1E]/60">Isi kebutuhan singkat. Posisi antrean dan detail berikutnya akan dikirim setelah pesanan tercatat.</p></div><div className="mt-6 flex items-center gap-2 text-xs font-semibold text-[#0038FF]">Lihat kapasitas sebelum pesan <ArrowRight className="h-4 w-4" /></div></div>
+      </div>
+    </section>
+  );
 }
 
 function ServicePackages({ onOrder, onConsult }: { onOrder: () => void; onConsult: () => void }) {
