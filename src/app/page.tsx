@@ -19,7 +19,7 @@ import {
 } from "@/lib/i18n";
 import { clearOrderDraft, getOrderDraft, saveOrderDraft } from "@/lib/orders";
 import { getCustomWorkItems, fetchPublishedPortfolio, PORTFOLIO_UPDATED_EVENT, type CustomWorkItem } from "@/lib/portfolio";
-import { Renderer, Camera, Transform, Mesh, Program, Geometry } from "ogl";
+import { Renderer, Camera, Transform, Mesh, Program, Box, Torus, Cylinder } from "ogl";
 
 /* ------------------------------------------------------------------ */
 /*  Konfigurasi CS WhatsApp — ganti nomor & pesan default di sini      */
@@ -1022,33 +1022,123 @@ function Real3DScene() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
     const renderer = new Renderer({ canvas, alpha: true, dpr: Math.min(window.devicePixelRatio, 2) });
     const gl = renderer.gl;
-    const camera = new Camera(gl, { fov: 35, near: 0.1, far: 100 });
-    camera.position.z = 5;
+    gl.clearColor(0, 0, 0, 0);
+
+    // Kamera perspektif sungguhan (bukan bidang datar) supaya ada kedalaman nyata.
+    const camera = new Camera(gl, { fov: 32, near: 0.1, far: 20 });
+    camera.position.set(0, 0.35, 5.4);
+    camera.lookAt([0, 0, 0]);
+
     const scene = new Transform();
-    const geometry = new Geometry(gl, {
-      position: { size: 3, data: new Float32Array([-1, -1, 0, 1, -1, 0, -1, 1, 0, 1, 1, 0]) },
-      uv: { size: 2, data: new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]) },
-      index: { data: new Uint16Array([0, 1, 2, 2, 1, 3]) },
+
+    // Shading berbasis normal vektor (bukan gradasi UV) — jadi tiap sisi benda
+    // benar-benar punya terang/gelap sesuai arah cahaya, ciri khas objek 3D asli.
+    const vertex = `
+      attribute vec3 position;
+      attribute vec3 normal;
+      uniform mat4 modelViewMatrix;
+      uniform mat4 projectionMatrix;
+      uniform mat3 normalMatrix;
+      varying vec3 vNormal;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+    const fragment = `
+      precision highp float;
+      varying vec3 vNormal;
+      uniform vec3 uColor;
+      uniform vec3 uColorDark;
+      void main() {
+        vec3 n = normalize(vNormal);
+        vec3 lightDir = normalize(vec3(0.45, 0.85, 0.6));
+        float diff = max(dot(n, lightDir), 0.0);
+        float wrap = clamp(diff * 0.8 + 0.32, 0.0, 1.0);
+        float rim = pow(1.0 - max(dot(n, vec3(0.0, 0.0, 1.0)), 0.0), 2.4);
+        vec3 color = mix(uColorDark, uColor, wrap) + rim * 0.3;
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `;
+    const makeProgram = (color: [number, number, number], dark: [number, number, number]) =>
+      new Program(gl, { vertex, fragment, uniforms: { uColor: { value: color }, uColorDark: { value: dark } } });
+
+    // Objek-objek 3D bertema jasa desain: kubus "palet warna", pensil (badan + mata pensil),
+    // dan cincin "alur kreativitas" — ketiganya geometri asli, bukan gambar rata.
+    const cube = new Mesh(gl, {
+      geometry: new Box(gl, { width: 1, height: 1, depth: 1 }),
+      program: makeProgram([0.42, 0.62, 1.0], [0.0, 0.12, 0.55]),
     });
-    const program = new Program(gl, {
-      vertex: `attribute vec3 position; attribute vec2 uv; varying vec2 vUv; uniform float uTime; void main(){ vUv=uv; vec3 p=position; p.y += sin(uTime*1.3 + p.x*3.0)*0.08; gl_Position=vec4(p,1.0); }`,
-      fragment: `precision highp float; varying vec2 vUv; uniform float uTime; void main(){ vec2 p=vUv-.5; float d=length(p); vec3 blue=vec3(.02,.22,.95); vec3 cyan=vec3(.42,.82,1.); float glow=smoothstep(.7,.05,d); float grid=step(.94,abs(sin(vUv.x*34.0))*abs(sin(vUv.y*34.0))); vec3 color=mix(blue,cyan,vUv.y*.7+sin(uTime)*.08); color+=grid*.18; gl_FragColor=vec4(color, glow*.92); }`,
-      uniforms: { uTime: { value: 0 } },
-      transparent: true,
+    cube.position.set(-1.15, 0.35, 0);
+    cube.scale.set(0.74, 0.74, 0.74);
+    cube.setParent(scene);
+
+    const ring = new Mesh(gl, {
+      geometry: new Torus(gl, { radius: 0.62, tube: 0.16, radialSegments: 12, tubularSegments: 30 }),
+      program: makeProgram([0.58, 0.86, 1.0], [0.0, 0.2, 0.65]),
     });
-    const mesh = new Mesh(gl, { geometry, program });
-    mesh.scale.set(1.9, 1.9, 1);
-    mesh.setParent(scene);
+    ring.position.set(1.05, -0.25, -0.25);
+    ring.rotation.x = Math.PI / 2.6;
+    ring.setParent(scene);
+
+    const pencil = new Transform();
+    pencil.position.set(0.05, 0.55, 0.6);
+    pencil.rotation.z = -0.55;
+    pencil.setParent(scene);
+
+    const pencilBody = new Mesh(gl, {
+      geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 1.35, radialSegments: 20 }),
+      program: makeProgram([1.0, 0.78, 0.32], [0.55, 0.32, 0.0]),
+    });
+    pencilBody.setParent(pencil);
+
+    const pencilTip = new Mesh(gl, {
+      geometry: new Cylinder(gl, { radiusTop: 0.0, radiusBottom: 0.16, height: 0.32, radialSegments: 20 }),
+      program: makeProgram([0.14, 0.14, 0.17], [0.02, 0.02, 0.03]),
+    });
+    pencilTip.position.y = -0.835;
+    pencilTip.setParent(pencil);
+
     let frame = 0;
-    const resize = () => { renderer.setSize(canvas.clientWidth, canvas.clientHeight); };
-    const render = (time: number) => { program.uniforms.uTime.value = time * 0.001; mesh.rotation.z = Math.sin(time * 0.0004) * 0.08; renderer.render({ scene, camera }); frame = requestAnimationFrame(render); };
-    resize(); window.addEventListener("resize", resize); frame = requestAnimationFrame(render);
-    return () => { cancelAnimationFrame(frame); window.removeEventListener("resize", resize); gl.getExtension("WEBGL_lose_context")?.loseContext(); };
+    const resize = () => {
+      renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+      camera.perspective({ aspect: canvas.clientWidth / canvas.clientHeight });
+    };
+
+    const render = (time: number) => {
+      const t = time * 0.001;
+
+      cube.rotation.x = t * 0.35;
+      cube.rotation.y = t * 0.5;
+      cube.position.y = 0.35 + Math.sin(t * 0.9) * 0.12;
+
+      ring.rotation.z = t * 0.3;
+      ring.position.y = -0.25 + Math.sin(t * 0.8 + 1.4) * 0.14;
+
+      pencil.rotation.y = Math.sin(t * 0.6) * 0.5;
+      pencil.position.y = 0.55 + Math.sin(t * 1.1 + 0.6) * 0.1;
+
+      scene.rotation.y = Math.sin(t * 0.18) * 0.12;
+
+      renderer.render({ scene, camera });
+      frame = requestAnimationFrame(render);
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    frame = requestAnimationFrame(render);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", resize);
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+    };
   }, []);
 
-  return <canvas ref={canvasRef} className="h-full w-full" aria-label="Animasi 3D identitas Kookiez" />;
+  return <canvas ref={canvasRef} className="h-full w-full" aria-label="Objek 3D: pensil, kubus palet warna, dan cincin kreativitas" />;
 }
 
 function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult: () => void; workRef: RefObject<HTMLElement> }) {
@@ -1151,23 +1241,74 @@ function AvailabilityBanner() {
   const isFull = maxSlots > 0 && availableSlots === 0;
   const isLimited = !isFull && availableSlots <= 2;
   const label = isFull ? "Antrean penuh" : isLimited ? "Slot terbatas" : "Slot tersedia";
-  const tone = isFull ? "bg-[#FDEBEC] text-[#9F2F2D]" : isLimited ? "bg-[#FBF3DB] text-[#956400]" : "bg-[#EDF3EC] text-[#346538]";
+  const tone = isFull
+    ? "border-[#9F2F2D]/25 bg-[#FDEBEC] text-[#9F2F2D]"
+    : isLimited
+    ? "border-[#956400]/25 bg-[#FBF3DB] text-[#956400]"
+    : "border-[#0038FF]/20 bg-[#0038FF]/5 text-[#0038FF]";
 
   return (
-    <section className="mx-auto max-w-7xl px-5 pb-20 sm:px-8" aria-live="polite">
-      <div className="overflow-hidden rounded-[2rem] border border-[#1A1A1E]/10 bg-[#1A1A1E] text-[#F9F9FB] shadow-[0_24px_70px_rgba(26,26,30,0.16)]">
-        <div className="grid gap-8 p-6 sm:p-9 lg:grid-cols-[1.1fr_.9fr] lg:items-end">
+    <section className="max-w-6xl mx-auto px-6 py-20 border-t border-[#1A1A1E]/10" aria-live="polite">
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
+        <div className="max-w-xl">
+          <p className="font-mono text-xs tracking-widest text-[#0038FF] mb-2">KAPASITAS PRODUKSI</p>
+          <h2 className="font-heading text-3xl font-semibold text-[#1A1A1E] tracking-tight">
+            Tahu kapan waktu terbaik untuk mulai.
+          </h2>
+          <p className="text-sm leading-relaxed text-[#1A1A1E]/55 mt-3">
+            {status === "offline"
+              ? "Kapasitas sedang tidak dapat dimuat. Coba refresh untuk melihat data terbaru."
+              : queue?.note || "Kami sedang mengambil kapasitas terbaru."}
+          </p>
+        </div>
+        <span className={`shrink-0 font-mono text-[11px] tracking-widest uppercase px-3 py-1.5 rounded-full border ${tone}`}>
+          {status === "loading" ? "Memuat" : label}
+        </span>
+      </div>
+
+      <div className="rounded-2xl border border-[#1A1A1E]/10 bg-white overflow-hidden">
+        <div className="p-6 sm:p-8">
+          {status === "loading" ? (
+            <div className="space-y-3">
+              <Skeleton className="h-2 w-full" />
+              <div className="flex justify-between">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="h-2 overflow-hidden rounded-full bg-[#1A1A1E]/8">
+                <div
+                  className="h-full rounded-full bg-[#0038FF] transition-all duration-500"
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+              <div className="mt-3 flex justify-between font-mono text-xs text-[#1A1A1E]/45">
+                <span>{activeSlots} dari {maxSlots || "–"} slot terisi</span>
+                <span>{percent}% terpakai</span>
+              </div>
+            </>
+          )}
+        </div>
+
+        <TicketDivider />
+
+        <div className="p-6 sm:p-8 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="font-mono text-[10px] tracking-[.2em] text-[#9DB7FF]">KAPASITAS PRODUKSI</p>
-            <h2 className="mt-4 max-w-xl font-heading text-3xl font-semibold tracking-tight sm:text-5xl">Tahu kapan waktu terbaik untuk mulai.</h2>
-            <p className="mt-4 max-w-lg text-sm leading-relaxed text-[#F9F9FB]/65">{status === "offline" ? "Kapasitas sedang tidak dapat dimuat. Coba refresh untuk melihat data terbaru." : queue?.note || "Kami sedang mengambil kapasitas terbaru."}</p>
-            {status === "loading" ? <div className="mt-8 space-y-3"><Skeleton className="h-3 w-full bg-white/10 before:via-white/20" /><div className="flex justify-between"><Skeleton className="h-3 w-28 bg-white/10 before:via-white/20" /><Skeleton className="h-3 w-16 bg-white/10 before:via-white/20" /></div></div> : <><div className="mt-8 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#9DB7FF] transition-all duration-500" style={{ width: `${percent}%` }} /></div><div className="mt-3 flex justify-between text-xs text-[#F9F9FB]/55"><span>{activeSlots} dari {maxSlots || "-"} slot terisi</span><span>{percent}% terpakai</span></div></>}
+            <p className="text-[10px] font-mono tracking-widest text-[#1A1A1E]/40 mb-1">SLOT TERSEDIA</p>
+            {status === "loading" ? (
+              <Skeleton className="h-10 w-16" />
+            ) : (
+              <p className="font-heading text-4xl font-semibold text-[#0038FF]">{availableSlots}</p>
+            )}
           </div>
-          <div className="rounded-2xl bg-[#F9F9FB] p-6 text-[#1A1A1E]">
-            <div className="flex items-start justify-between gap-4"><p className="text-xs font-semibold text-[#1A1A1E]/55">SLOT TERSEDIA</p><span className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${tone}`}>{status === "loading" ? "Memuat" : label}</span></div>
-            {status === "loading" ? <><Skeleton className="mt-5 h-12 w-20" /><Skeleton className="mt-3 h-4 w-36" /></> : <><p className="mt-4 font-heading text-5xl text-[#0038FF]">{availableSlots}</p><p className="mt-1 text-sm text-[#1A1A1E]/60">slot masih tersedia untuk pesanan baru</p></>}
-            <Link href="/lacak" className="mt-7 flex items-center justify-between rounded-xl bg-[#0038FF] px-4 py-3 text-sm font-medium text-white transition-transform hover:-translate-y-0.5 active:translate-y-0">Lacak pesanan <ArrowRight className="h-4 w-4" /></Link>
-          </div>
+          <Link
+            href="/lacak"
+            className="flex items-center gap-2 bg-[#0038FF] text-white text-sm font-medium px-5 py-3 rounded-2xl hover:bg-[#0030DB] transition-colors"
+          >
+            Lacak pesanan <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       </div>
     </section>
