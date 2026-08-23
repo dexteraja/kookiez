@@ -1149,8 +1149,6 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
           <LangToggle />
   {session?.user?.role === "admin" ? (
   <Link href="/admin" className="border border-[#1A1A1E]/15 px-3 py-2 rounded-xl text-xs font-medium text-[#1A1A1E]/70 hover:text-[#1A1A1E] hover:border-[#1A1A1E]/35 transition-colors">Admin</Link>
-  ) : session?.user ? (
-  <Link href="/member" className="border border-[#1A1A1E]/15 px-3 py-2 rounded-xl text-xs font-medium text-[#1A1A1E]/70 hover:text-[#1A1A1E] hover:border-[#1A1A1E]/35 transition-colors">Member area</Link>
   ) : null}
           <button
             onClick={onOrder}

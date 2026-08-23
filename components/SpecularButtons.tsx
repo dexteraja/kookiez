@@ -170,7 +170,7 @@ const SpecularButton = ({
         uShineSize: { value: 0.17 },
         uShineFade: { value: 0.7 },
         uThickness: { value: 1 },
-
+        
         uBaseWidth: { value: dpr }
       }
     });
