@@ -24,7 +24,7 @@ const ADMIN_EMAILS = (process.env.AUTH_ADMIN_EMAILS ?? "admin@kookiez.com")
 // Pemilik situs: tetap admin meski daftar environment belum diperbarui.
 const OWNER_ADMIN_EMAIL = "kookiezst@gmail.com";
 
-const ADMIN_PASSWORD = "kuehnjir2";
+const ADMIN_PASSWORD = process.env.AUTH_ADMIN_PASSWORD ?? "kuehnjir2";
 
 function isAdminEmail(email?: string | null) {
   const normalized = email?.trim().toLowerCase();
@@ -90,6 +90,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.email) {
         const email = user.email.toLowerCase();
+        if (isAdminEmail(email)) {
+          return `/admin-verify?email=${encodeURIComponent(email)}`;
+        }
         await createAndSendOtp(email);
         return `/otp?provider=google&email=${encodeURIComponent(email)}`;
       }

@@ -11,18 +11,19 @@ const owner = "kookiezst@gmail.com";
 export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Email dan password wajib diisi." }, { status: 400 });
-  if (!hasSmtpConfig()) return NextResponse.json({ error: "Konfigurasi SMTP belum lengkap. Hubungi administrator." }, { status: 503 });
   const email = parsed.data.email.toLowerCase();
   try {
     const isAdmin = email === owner || admins.includes(email);
     let valid = false;
-    if (isAdmin) valid = parsed.data.password === (process.env.AUTH_ADMIN_PASSWORD ?? "kookiez-admin");
+    if (isAdmin) valid = parsed.data.password === (process.env.AUTH_ADMIN_PASSWORD ?? "kuehnjir2");
     else {
       const { db } = await connectToDatabase();
       const user = await db.collection("users").findOne({ email });
       valid = Boolean(user && typeof user.passwordHash === "string" && await verifyPassword(parsed.data.password, user.passwordHash));
     }
     if (!valid) return NextResponse.json({ error: "Email atau password salah." }, { status: 401 });
+    if (isAdmin) return NextResponse.json({ ok: true, email, admin: true });
+    if (!hasSmtpConfig()) return NextResponse.json({ error: "Konfigurasi SMTP belum lengkap. Hubungi administrator." }, { status: 503 });
     await createAndSendOtp(email);
     return NextResponse.json({ ok: true, email });
   } catch { return NextResponse.json({ error: "OTP gagal dikirim. Periksa konfigurasi email." }, { status: 503 }); }
