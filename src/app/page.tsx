@@ -17,7 +17,7 @@ import {
   useLang, useServices, useBudgetTiers, useTerms, useTestimonials,
   type ServiceId, type BudgetId, type ServiceItem, type BudgetTier, type WorkItem, type TermItem,
 } from "@/lib/i18n";
-import { clearOrderDraft, getOrderDraft, saveOrder, saveOrderDraft, generateOrderCode, type StoredOrder } from "@/lib/orders";
+import { clearOrderDraft, getOrderDraft, saveOrderDraft } from "@/lib/orders";
 import { getSiteSettings, SITE_SETTINGS_UPDATED_EVENT, type SiteSettings } from "@/lib/site-settings";
 import { getCustomWorkItems, fetchPublishedPortfolio, PORTFOLIO_UPDATED_EVENT, type CustomWorkItem } from "@/lib/portfolio";
 
@@ -606,53 +606,39 @@ function OrderModal({
 
   const handlePay = async () => {
     setPaying(true);
-    await new Promise((r) => setTimeout(r, 1400));
-    setPaying(false);
-
     const tier = budgetTiers.find((tItem) => tItem.id === budgetData.budget);
     const isCustom = tier?.base == null;
     const base = tier?.base ?? 0;
     const amount = isCustom ? null : orderState.plan === "deposit" ? Math.round(base * 0.3) : base;
-    const code = generateOrderCode();
     const serviceObj = services.find((s) => s.id === service);
 
-    const stored: StoredOrder = {
-      code,
-      createdAt: new Date().toISOString(),
-      service: serviceObj?.title ?? "",
-      budgetLabel: tier ? `${tier.label} · ${tier.range}` : "",
-      deadline: budgetData.deadline,
-      plan: orderState.plan,
-      method: orderState.method,
-      amount,
-      isCustom,
-      briefScope: brief.scope,
-      briefRefs: brief.refs,
-      fileNames: brief.files.map((f) => f.name),
-      status: "pending",
-      customerEmail: session?.user?.email,
-    };
-    saveOrder(stored);
-    clearOrderDraft();
-
-    // Kirim notifikasi konfirmasi (email) — lihat /api/send-confirmation untuk detail integrasi.
-    fetch("/api/send-confirmation", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(stored),
-    }).catch(() => {});
-
-    onSuccess({
-      code,
-      service: serviceObj?.title,
-      tier: tier?.label,
-      deadline: budgetData.deadline,
-      plan: orderState.plan,
-      method: orderState.method,
-      amount,
-      isCustom,
-    });
-    onClose();
+    try {
+      const res = await fetch("/api/queue/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          service: serviceObj?.title ?? service,
+          budgetLabel: tier ? `${tier.label} · ${tier.range}` : "",
+          deadline: budgetData.deadline,
+          plan: orderState.plan,
+          method: orderState.method,
+          amount,
+          isCustom,
+          briefScope: brief.scope,
+          briefRefs: brief.refs,
+          fileNames: brief.files.map((f) => f.name),
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Gagal masuk antrean");
+      clearOrderDraft();
+      onSuccess({ code: result.code, service: serviceObj?.title, tier: tier?.label, deadline: budgetData.deadline, plan: orderState.plan, method: orderState.method, amount, isCustom });
+      onClose();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Gagal masuk antrean. Coba lagi.");
+    } finally {
+      setPaying(false);
+    }
   };
 
   return (
