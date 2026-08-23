@@ -4,6 +4,7 @@ import { JoinQueueSchema } from "@/lib/validation";
 import { rateLimit } from "@/lib/rate-limit";
 import { sseBroadcaster } from "@/lib/sse/broadcaster";
 import { auth } from "@/auth";
+import { getPaymentSettings, whatsappUrl } from "@/lib/auth-helpers";
 
 function generateOrderCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
     const queuePosition = reservedCount;
     const orderCode = generateOrderCode();
 
+    const paymentSettings = await getPaymentSettings();
     const orderDoc = {
       code: orderCode,
       createdAt: new Date(),
@@ -91,6 +93,7 @@ export async function POST(req: NextRequest) {
       status: "pending",
       queuePosition,
       customerEmail: data.customerEmail,
+      paymentStatus: paymentSettings.onlinePaymentEnabled ? "online_pending" : "whatsapp_fallback",
     };
 
     try {
@@ -121,6 +124,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    const customer = session?.user ? { name: session.user.name, email: customerEmail } : { email: customerEmail };
+    const redirectUrl = paymentSettings.onlinePaymentEnabled ? null : whatsappUrl(orderDoc, customer, paymentSettings.whatsappCsNumber);
     return NextResponse.json(
       {
         code: orderCode,
@@ -128,6 +133,8 @@ export async function POST(req: NextRequest) {
         activeSlots: updatedActiveCount,
         availableSlots: Math.max(0, maxSlots - updatedActiveCount),
         maxSlots,
+        paymentStatus: orderDoc.paymentStatus,
+        whatsappUrl: redirectUrl,
       },
       { status: 201 }
     );

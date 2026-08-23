@@ -856,8 +856,9 @@ function OrderModal({
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Gagal masuk antrean");
       clearOrderDraft();
-      onSuccess({ code: result.code, service: serviceObj?.title, tier: tier?.label, deadline: budgetData.deadline, plan: orderState.plan, method: orderState.method, amount, isCustom });
-      onClose();
+  if (result.whatsappUrl) window.open(result.whatsappUrl, "_blank", "noopener,noreferrer");
+  onSuccess({ code: result.code, service: serviceObj?.title, tier: tier?.label, deadline: budgetData.deadline, plan: orderState.plan, method: orderState.method, amount, isCustom });
+  onClose();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Gagal masuk antrean. Coba lagi.");
     } finally {

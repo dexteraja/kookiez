@@ -70,6 +70,15 @@ export default function AdminPage() {
   const [slotMessage, setSlotMessage] = useState("");
   const eventSourceRef = useRef<EventSource | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [paymentSettings, setPaymentSettings] = useState({ onlinePaymentEnabled: false, whatsappCsNumber: "" });
+  const [paymentMessage, setPaymentMessage] = useState("");
+  const [admins, setAdmins] = useState<Array<{ _id: string; email: string; name?: string; status: string }>>([]);
+  const [newAdmin, setNewAdmin] = useState({ email: "", name: "", password: "" });
+  const [adminMessage, setAdminMessage] = useState("");
+  const loadAccessSettings = useCallback(async () => { const [p, a] = await Promise.all([fetch("/api/admin/payment"), fetch("/api/admin/users")]); if (p.ok) setPaymentSettings(await p.json()); if (a.ok) setAdmins((await a.json()).admins); }, []);
+  const savePayment = async () => { const res = await fetch("/api/admin/payment", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(paymentSettings) }); setPaymentMessage(res.ok ? "Pengaturan payment tersimpan." : "Gagal menyimpan pengaturan."); };
+  const addAdmin = async (event: FormEvent) => { event.preventDefault(); const res = await fetch("/api/admin/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newAdmin) }); const data = await res.json(); setAdminMessage(res.ok ? "Admin berhasil ditambahkan." : data.error); if (res.ok) { setNewAdmin({ email: "", name: "", password: "" }); loadAccessSettings(); } };
+  const toggleAdminAccess = async (id: string, active: boolean) => { const res = await fetch("/api/admin/users", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, active }) }); if (!res.ok) setAdminMessage((await res.json()).error); else loadAccessSettings(); };
 
   const savePricing = async () => {
     setPricingMessage("Menyimpan...");
@@ -108,6 +117,7 @@ export default function AdminPage() {
   useEffect(() => {
     if ((session?.user as { role?: string })?.role === "admin") {
       fetchAdminData();
+      loadAccessSettings();
       fetch("/api/admin/portfolio").then((res) => res.ok ? res.json() : null).then((data) => {
         if (data) setWorkJson(JSON.stringify(data.items, null, 2));
       }).catch(() => {});
@@ -322,7 +332,23 @@ export default function AdminPage() {
           </div>
         </section>
 
-        {/* Sales snapshot */}
+        <section className="mb-8 grid gap-6 lg:grid-cols-2">
+    <div className="border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
+      <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">PAYMENT CONTROL</p>
+      <h2 className="font-heading text-xl font-semibold mb-2">Payment online</h2>
+      <p className="text-sm text-[#1A1A1E]/55 mb-5">Matikan sementara jika gateway bermasalah. Member akan diarahkan ke WhatsApp CS otomatis.</p>
+      <label className="flex items-center justify-between gap-4 rounded-lg border border-[#1A1A1E]/10 p-4 text-sm font-medium"><span>{paymentSettings.onlinePaymentEnabled ? "Payment online aktif" : "Payment online nonaktif"}</span><input type="checkbox" checked={paymentSettings.onlinePaymentEnabled} onChange={(e) => setPaymentSettings((v) => ({ ...v, onlinePaymentEnabled: e.target.checked }))} className="h-5 w-5 accent-[#0038FF]" /></label>
+      <label className="grid gap-2 mt-4 text-sm font-medium">Nomor WhatsApp CS<input value={paymentSettings.whatsappCsNumber} onChange={(e) => setPaymentSettings((v) => ({ ...v, whatsappCsNumber: e.target.value }))} placeholder="62812..." className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm" /></label>
+      <div className="mt-4 flex items-center gap-3"><button onClick={savePayment} className="rounded-lg bg-[#0038FF] px-4 py-2.5 text-sm font-medium text-white">Simpan payment</button>{paymentMessage && <span className="text-xs text-[#1A1A1E]/55" role="status">{paymentMessage}</span>}</div>
+    </div>
+    <div className="border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
+      <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">ADMIN ACCESS</p><h2 className="font-heading text-xl font-semibold mb-2">Kelola admin</h2>
+      <div className="grid gap-2 mb-4">{admins.map((admin) => <div key={admin._id} className="flex items-center justify-between gap-3 rounded-lg border border-[#1A1A1E]/10 px-3 py-2 text-sm"><span>{admin.name} <span className="text-[#1A1A1E]/45">{admin.email}</span></span><button onClick={() => toggleAdminAccess(admin._id, admin.status !== "active")} className="text-xs text-[#0038FF]">{admin.status === "active" ? "Nonaktifkan" : "Aktifkan"}</button></div>)}</div>
+      <form onSubmit={addAdmin} className="grid gap-2"><input required type="email" placeholder="Email admin baru" value={newAdmin.email} onChange={(e) => setNewAdmin((v) => ({ ...v, email: e.target.value }))} className="rounded-lg border border-[#1A1A1E]/15 px-3 py-2 text-sm" /><input required placeholder="Nama" value={newAdmin.name} onChange={(e) => setNewAdmin((v) => ({ ...v, name: e.target.value }))} className="rounded-lg border border-[#1A1A1E]/15 px-3 py-2 text-sm" /><input required minLength={8} type="password" placeholder="Password minimal 8 karakter" value={newAdmin.password} onChange={(e) => setNewAdmin((v) => ({ ...v, password: e.target.value }))} className="rounded-lg border border-[#1A1A1E]/15 px-3 py-2 text-sm" /><button className="rounded-lg border border-[#0038FF] px-4 py-2.5 text-sm font-medium text-[#0038FF]">Tambah admin</button></form>{adminMessage && <p className="mt-2 text-xs text-[#1A1A1E]/55" role="status">{adminMessage}</p>}
+    </div>
+  </section>
+
+  {/* Sales snapshot */}
         <section className="mb-8 grid gap-3 sm:grid-cols-3">
           {[
             ["Total pesanan", orders.length.toString()],
