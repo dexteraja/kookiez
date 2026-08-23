@@ -34,6 +34,10 @@ export default function LoginPage() {
       const data = await response.json().catch(() => ({}));
       setLoading(false);
       if (!response.ok) { setError(data.error ?? "Email atau password salah."); return; }
+      if (data.admin === true) {
+        window.location.href = "/";
+        return;
+      }
       sessionStorage.setItem("kookiez_login_password", password);
       window.location.href = `/otp?email=${encodeURIComponent(email)}`;
       return;
