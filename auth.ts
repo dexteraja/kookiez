@@ -1,6 +1,8 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
+import { connectToDatabase } from "@/lib/mongodb";
+import { verifyPassword } from "@/lib/password";
 
 /* ------------------------------------------------------------------ */
 /*  Role admin — DEMO: daftar email & password di sini. Untuk          */
@@ -53,11 +55,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return { id: email, name: "Admin", email, role: "admin" as Role };
         }
 
-        // Member biasa — DEMO: ganti dengan query database sungguhan (Prisma/dst).
-        if (email === "user@example.com" && password === "123456") {
-          return { id: email, name: "Hibiki", email, role: "member" as Role };
+        try {
+          const { db } = await connectToDatabase();
+          const member = await db.collection("users").findOne({ email });
+          if (!member || typeof member.passwordHash !== "string" || !(await verifyPassword(password, member.passwordHash))) return null;
+          return { id: String(member._id), name: String(member.name ?? email.split("@")[0]), email, role: "member" as Role };
+        } catch {
+          return null;
         }
-        return null;
       },
     }),
   ],
