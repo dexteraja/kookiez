@@ -49,6 +49,11 @@ export async function PATCH(
 
     const settings = await db.collection("queue_settings").findOne({ key: "global" });
     const maxSlots = settings?.maxSlots ?? 9;
+    await db.collection("queue_settings").updateOne(
+      { key: "global" },
+      { $set: { activeSlots: activeOrders.length, maxSlots } },
+      { upsert: true }
+    );
 
     for (let i = 0; i < activeOrders.length; i++) {
       await db

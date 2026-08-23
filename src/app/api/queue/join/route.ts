@@ -52,25 +52,35 @@ export async function POST(req: NextRequest) {
     const { db } = await connectToDatabase();
     const data = parsed.data;
 
-    const settings = await db
-      .collection("queue_settings")
-      .findOne({ key: "global" });
-
-    const maxSlots = settings?.maxSlots ?? 9;
-
-    const activeCount = await db
-      .collection("orders")
-      .countDocuments({ status: { $in: ["pending", "progress"] } });
-
-    if (activeCount >= maxSlots) {
-      return NextResponse.json(
-        { error: "Queue is full. No slots available." },
-        { status: 409 }
+    const settingsCollection = db.collection("queue_settings");
+    const ordersCollection = db.collection("orders");
+    let settings = await settingsCollection.findOne({ key: "global" });
+    if (!settings) {
+      await settingsCollection.updateOne(
+        { key: "global" },
+        { $setOnInsert: { key: "global", maxSlots: 9, activeSlots: 0, note: "" } },
+        { upsert: true }
       );
+      settings = await settingsCollection.findOne({ key: "global" });
+    }
+    const maxSlots = settings?.maxSlots ?? 9;
+    if (settings && typeof settings.activeSlots !== "number") {
+      const currentActive = await ordersCollection.countDocuments({ status: { $in: ["pending", "progress"] } });
+      await settingsCollection.updateOne({ key: "global" }, { $set: { activeSlots: currentActive } });
     }
 
-    const queuePosition = activeCount + 1;
+    // Reserve capacity atomically so simultaneous checkouts cannot take the last slot.
+    const reservation = await settingsCollection.findOneAndUpdate(
+      { key: "global", maxSlots, activeSlots: { $lt: maxSlots } },
+      { $inc: { activeSlots: 1 } },
+      { returnDocument: "after" }
+    );
+    if (!reservation) {
+      return NextResponse.json({ error: "Queue is full. No slots available." }, { status: 409 });
+    }
 
+    const activeCount = reservation.activeSlots ?? 1;
+    const queuePosition = activeCount;
     const orderCode = generateOrderCode();
 
     const orderDoc = {
@@ -91,9 +101,14 @@ export async function POST(req: NextRequest) {
       customerEmail: data.customerEmail,
     };
 
-    await db.collection("orders").insertOne(orderDoc);
+    try {
+      await ordersCollection.insertOne(orderDoc);
+    } catch (insertError) {
+      await settingsCollection.updateOne({ key: "global" }, { $inc: { activeSlots: -1 } });
+      throw insertError;
+    }
 
-    const updatedActiveCount = activeCount + 1;
+    const updatedActiveCount = activeCount;
 
     sseBroadcaster.broadcast({
       type: "new_order",
