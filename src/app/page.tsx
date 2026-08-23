@@ -1283,6 +1283,16 @@ function Real3DScene() {
       varying vec3 vViewPos;
       uniform vec3 uColor;
       uniform vec3 uColorDark;
+
+      // Dithering murah berbasis posisi layar (gl_FragCoord) untuk memecah
+      // color banding 8-bit pada gradien landai. Nilainya sangat kecil
+      // (+-1/255 skala) sehingga tidak terlihat sebagai noise/grain, tapi
+      // cukup untuk mengacak batas antar-pita warna yang sebelumnya
+      // terlihat sebagai "anak tangga" pada permukaan melengkung.
+      float dither(vec2 co) {
+        return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+      }
+
       void main() {
         vec3 n = normalize(vNormal);
         vec3 v = normalize(-vViewPos);
@@ -1290,11 +1300,23 @@ function Real3DScene() {
         vec3 h = normalize(l + v);
 
         float diff = max(dot(n, l), 0.0);
-        float wrap = clamp(diff * 0.7 + 0.3, 0.0, 1.0);
+        // Kurva shading lebih tajam (0.85 base, bukan 0.7/0.3) daripada
+        // sebelumnya: gradien sebelumnya terlalu landai (rentang 0.3-1.0),
+        // dan gradien landai adalah yang paling mudah terlihat "berundak"
+        // pada presisi warna 8-bit. Kurva yang lebih kontras memampatkan
+        // gradien ke rentang efektif yang lebih pendek secara persepsi,
+        // mengurangi jumlah pita yang terlihat pada permukaan yang sama.
+        float wrap = clamp(diff * 0.85 + 0.15, 0.0, 1.0);
+        // Sedikit ambient occlusion approksimasi: permukaan yang menghadap
+        // ke bawah (menjauhi arah atas) sedikit digelapkan, meniru cara
+        // cahaya ambient dari atas biasanya kurang mengenai sisi bawah
+        // objek. Menambah kesan kedalaman supaya tidak terlihat flat.
+        float ao = 0.85 + 0.15 * max(dot(n, vec3(0.0, 1.0, 0.0)), 0.0);
         float spec = pow(max(dot(n, h), 0.0), 64.0) * 0.5;
         float rim = pow(1.0 - max(dot(n, v), 0.0), 2.5) * 0.3;
 
-        vec3 color = mix(uColorDark, uColor, wrap) + spec + rim;
+        vec3 color = mix(uColorDark, uColor, wrap) * ao + spec + rim;
+        color += dither(gl_FragCoord.xy) * 0.006;
         gl_FragColor = vec4(color, 1.0);
       }
     `;
@@ -1326,7 +1348,7 @@ function Real3DScene() {
       geometry: new Torus(gl, {
         radius: 0.6,
         tube: 0.2,
-        radialSegments: 32,
+        radialSegments: 64,
         tubularSegments: 64,
       }),
       program: makeProgram([0.15, 0.5, 1.0], [0.0, 0.1, 0.5]),
@@ -1344,7 +1366,7 @@ function Real3DScene() {
         radiusTop: 0.16,
         radiusBottom: 0.16,
         height: 1.1,
-        radialSegments: 32,
+        radialSegments: 64,
       }),
       program: makeProgram([1.0, 0.72, 0.15], [0.55, 0.3, 0.0]),
     });
@@ -1356,7 +1378,7 @@ function Real3DScene() {
         radiusTop: 0.16,
         radiusBottom: 0.04,
         height: 0.4,
-        radialSegments: 32,
+        radialSegments: 64,
       }),
       program: makeProgram([0.9, 0.75, 0.6], [0.5, 0.35, 0.2]),
     });
@@ -1368,7 +1390,7 @@ function Real3DScene() {
         radiusTop: 0.04,
         radiusBottom: 0,
         height: 0.15,
-        radialSegments: 32,
+        radialSegments: 64,
       }),
       program: makeProgram([0.15, 0.15, 0.15], [0.02, 0.02, 0.02]),
     });
@@ -1380,7 +1402,7 @@ function Real3DScene() {
         radiusTop: 0.16,
         radiusBottom: 0.16,
         height: 0.15,
-        radialSegments: 32,
+        radialSegments: 64,
       }),
       program: makeProgram([0.8, 0.8, 0.85], [0.4, 0.4, 0.45]),
     });
@@ -1392,7 +1414,7 @@ function Real3DScene() {
         radiusTop: 0.16,
         radiusBottom: 0.16,
         height: 0.25,
-        radialSegments: 32,
+        radialSegments: 64,
       }),
       program: makeProgram([1.0, 0.6, 0.65], [0.6, 0.2, 0.25]),
     });
