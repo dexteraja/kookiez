@@ -1034,7 +1034,7 @@ function Real3DScene() {
     });
     const program = new Program(gl, {
       vertex: `attribute vec3 position; attribute vec2 uv; varying vec2 vUv; uniform float uTime; void main(){ vUv=uv; vec3 p=position; p.y += sin(uTime*1.3 + p.x*3.0)*0.08; gl_Position=vec4(p,1.0); }`,
-      fragment: `precision highp float; varying vec2 vUv; uniform float uTime; void main(){ vec2 p=vUv-.5; float d=length(p); vec3 blue=vec3(.02,.22,.95); vec3 cyan=vec3(.42,.82,1.); float glow=smoothstep(.7,.05,d); float grid=step(.94,abs(sin(vUv.x*34.0))*abs(sin(vUv.y*34.0))); vec3 color=mix(blue,cyan,vUv.y*.7+sin(uTime)*.08); color+=grid*.18; gl_FragColor=vec4(color, glow*.92); }`,
+      fragment: `precision highp float; varying vec2 vUv; uniform float uTime; void main(){ vec2 p=vUv-.5; p.x*=1.35; float blob=length(p); float edge=smoothstep(.5,.34,blob); float highlight=smoothstep(.22,-.05,length(p-vec2(-.12,.14))); vec3 blue=vec3(.02,.22,.95); vec3 cyan=vec3(.35,.78,1.); vec3 color=mix(blue,cyan,highlight); color+=vec3(.08,.18,.42)*(1.0-blob*1.7); gl_FragColor=vec4(color, edge*.9); }`,
       uniforms: { uTime: { value: 0 } },
       transparent: true,
     });

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { buildBudgetTiers, DEFAULT_PRICING, type PricingOverride } from "@/lib/pricing";
 
 export type Lang = "id" | "en";
 
@@ -436,7 +437,13 @@ export function useServices(): ServiceItem[] {
 }
 export function useBudgetTiers(): BudgetTier[] {
   const { lang } = useLang();
-  return budgetTiersData[lang];
+  const [pricing, setPricing] = useState<PricingOverride>(DEFAULT_PRICING);
+  useEffect(() => {
+    fetch("/api/pricing").then((res) => res.ok ? res.json() : null).then((data) => {
+      if (data?.pricing) setPricing({ ...DEFAULT_PRICING, ...data.pricing });
+    }).catch(() => {});
+  }, []);
+  return buildBudgetTiers(lang, pricing);
 }
 export function useWork(): WorkItem[] {
   const { lang } = useLang();

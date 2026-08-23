@@ -18,12 +18,9 @@ export default function OtpPage() {
     setLoading(true); setError("");
     const password = sessionStorage.getItem("kookiez_login_password") ?? "";
     const provider = params.get("provider");
-    const response = provider === "google"
-      ? await fetch("/api/auth/verify-otp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, code }) })
-      : null;
-    const result = provider === "google" ? null : await signIn("credentials", { email, password, otp: code, redirect: false });
+    const result = await signIn("credentials", { email, password: provider === "google" ? "" : password, otp: code, googleOtp: provider === "google" ? "true" : "", redirect: false });
     setLoading(false);
-    if ((response && !response.ok) || result?.error) { setError("Kode OTP salah atau sudah kedaluwarsa."); return; }
+    if (result?.error) { setError("Kode OTP salah atau sudah kedaluwarsa."); return; }
     sessionStorage.removeItem("kookiez_login_password");
     window.location.href = "/";
   }
