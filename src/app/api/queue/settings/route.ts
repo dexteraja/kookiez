@@ -4,6 +4,8 @@ import { UpdateQueueSettingsSchema } from "@/lib/validation";
 import { sseBroadcaster } from "@/lib/sse/broadcaster";
 import { auth } from "@/auth";
 
+export const dynamic = "force-dynamic";
+
 const QUEUE_KEY = "global";
 
 export async function GET() {

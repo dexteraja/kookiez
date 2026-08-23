@@ -65,6 +65,7 @@ export default function AdminPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [updatingSlot, setUpdatingSlot] = useState(false);
+  const [slotMessage, setSlotMessage] = useState("");
   const eventSourceRef = useRef<EventSource | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -201,23 +202,24 @@ export default function AdminPage() {
     if (newMax < 1) return;
 
     setUpdatingSlot(true);
+    setSlotMessage("");
     try {
       const res = await fetch("/api/queue/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ maxSlots: newMax, note }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setQueueInfo({
-          maxSlots: data.maxSlots,
-          activeSlots: data.activeSlots,
-          availableSlots: data.availableSlots,
-          note: data.note,
-        });
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Slot gagal diperbarui.");
+      setQueueInfo({
+        maxSlots: data.maxSlots,
+        activeSlots: data.activeSlots,
+        availableSlots: data.availableSlots,
+        note: data.note,
+      });
+      setSlotMessage(`Kapasitas diperbarui menjadi ${data.maxSlots} slot.`);
     } catch (err) {
-      console.error("Failed to update slots:", err);
+      setSlotMessage(err instanceof Error ? err.message : "Slot gagal diperbarui.");
     } finally {
       setUpdatingSlot(false);
     }
@@ -357,6 +359,9 @@ export default function AdminPage() {
               <Plus className="w-4 h-4" />
             </button>
           </div>
+          {slotMessage && (
+            <p className="mt-3 text-xs text-[#1A1A1E]/60" role="status">{slotMessage}</p>
+          )}
 
           <div className="mt-4 flex gap-2">
             <input
