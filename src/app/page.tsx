@@ -34,6 +34,206 @@ const waLink = (msg: string): string => `https://wa.me/${WA_NUMBER}?text=${encod
 
 type PaymentPlan = "deposit" | "full";
 type PaymentMethod = "qris" | "va" | "card";
+type Responsive3DLayout = {
+  cameraZ: number;
+  fov: number;
+
+  pencil: {
+    x: number;
+    y: number;
+    z: number;
+    scale: number;
+  };
+
+  cube: {
+    x: number;
+    y: number;
+    z: number;
+    scale: number;
+  };
+
+  ring: {
+    x: number;
+    y: number;
+    z: number;
+    scale: number;
+  };
+};
+
+function getResponsive3DLayout(
+  width: number,
+  height: number
+): Responsive3DLayout {
+  const aspect = width / Math.max(height, 1);
+
+  if (aspect < 0.6) {
+    return {
+      cameraZ: 8.5,
+      fov: 38,
+
+      pencil: {
+        x: 1.25,
+        y: -0.65,
+        z: 2.2,
+        scale: 1.25,
+      },
+
+      cube: {
+        x: 1.45,
+        y: 2.1,
+        z: -0.5,
+        scale: 0.75,
+      },
+
+      ring: {
+        x: 1.3,
+        y: -2.25,
+        z: 0.8,
+        scale: 0.85,
+      },
+    };
+  }
+
+  if (aspect < 1.15) {
+    return {
+      cameraZ: 7.8,
+      fov: 36,
+
+      pencil: {
+        x: 1.8,
+        y: -0.3,
+        z: 2.4,
+        scale: 1.55,
+      },
+
+      cube: {
+        x: 2.0,
+        y: 2.15,
+        z: -0.8,
+        scale: 0.95,
+      },
+
+      ring: {
+        x: 1.8,
+        y: -2.35,
+        z: 1,
+        scale: 1.05,
+      },
+    };
+  }
+
+  return {
+    cameraZ: 7,
+    fov: 35,
+
+    pencil: {
+      x: 2.35,
+      y: -0.2,
+      z: 2.5,
+      scale: 2,
+    },
+
+    cube: {
+      x: 2.8,
+      y: 2.2,
+      z: -1,
+      scale: 1.2,
+    },
+
+    ring: {
+      x: 2.4,
+      y: -2.5,
+      z: 1,
+      scale: 1.4,
+    },
+  };
+}
+
+function applyResponsive3DLayout(
+  camera: Camera,
+  pencil: Transform,
+  cube: Mesh,
+  ring: Mesh,
+  layout: Responsive3DLayout,
+  aspect: number
+): void {
+  camera.position.set(0, 0, layout.cameraZ);
+  camera.lookAt([0, 0, 0]);
+  camera.perspective({
+    aspect,
+    fov: layout.fov,
+    near: 0.1,
+    far: 50,
+  });
+
+  pencil.position.set(
+    layout.pencil.x,
+    layout.pencil.y,
+    layout.pencil.z
+  );
+  pencil.scale.setScalar(layout.pencil.scale);
+
+  cube.position.set(
+    layout.cube.x,
+    layout.cube.y,
+    layout.cube.z
+  );
+  cube.scale.setScalar(layout.cube.scale);
+
+  ring.position.set(
+    layout.ring.x,
+    layout.ring.y,
+    layout.ring.z
+  );
+  ring.scale.setScalar(layout.ring.scale);
+}
+
+function resizeResponsive3D(
+  canvas: HTMLCanvasElement,
+  renderer: Renderer,
+  camera: Camera,
+  pencil: Transform,
+  cube: Mesh,
+  ring: Mesh
+): Responsive3DLayout {
+  const width = Math.max(canvas.clientWidth, 1);
+  const height = Math.max(canvas.clientHeight, 1);
+  const aspect = width / height;
+
+  renderer.setSize(width, height);
+
+  const layout = getResponsive3DLayout(width, height);
+  applyResponsive3DLayout(
+    camera,
+    pencil,
+    cube,
+    ring,
+    layout,
+    aspect
+  );
+
+  return layout;
+}
+
+function updateResponsive3DAnimation(
+  time: number,
+  pencil: Transform,
+  cube: Mesh,
+  ring: Mesh,
+  layout: Responsive3DLayout
+): void {
+  const t = time * 0.001;
+
+  cube.rotation.x = t * 0.35;
+  cube.rotation.y = t * 0.5;
+  cube.position.y = layout.cube.y + Math.sin(t * 0.9) * 0.15;
+
+  ring.rotation.z = t * 0.3;
+  ring.position.y = layout.ring.y + Math.sin(t * 0.8 + 1.4) * 0.15;
+
+  pencil.rotation.y = t * 0.35;
+  pencil.position.y = layout.pencil.y + Math.sin(t * 1.1 + 0.6) * 0.15;
+}
 
 interface UploadedFile {
   name: string;
@@ -1023,13 +1223,20 @@ function Real3DScene() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const renderer = new Renderer({ canvas, alpha: true, dpr: Math.min(window.devicePixelRatio, 2) });
+    const renderer = new Renderer({
+      canvas,
+      alpha: true,
+      dpr: Math.min(window.devicePixelRatio, 2),
+    });
     const gl = renderer.gl;
     gl.clearColor(0, 0, 0, 0);
 
-    // 1. KAMERA Dikalibrasi agar pas dengan lebar layar
-    const camera = new Camera(gl, { fov: 35, near: 0.1, far: 50 });
-    camera.position.set(0, 0, 7.0); 
+    const camera = new Camera(gl, {
+      fov: 35,
+      near: 0.1,
+      far: 50,
+    });
+    camera.position.set(0, 0, 7);
     camera.lookAt([0, 0, 0]);
 
     const scene = new Transform();
@@ -1049,6 +1256,7 @@ function Real3DScene() {
         gl_Position = projectionMatrix * viewPos;
       }
     `;
+
     const fragment = `
       precision highp float;
       varying vec3 vNormal;
@@ -1060,110 +1268,154 @@ function Real3DScene() {
         vec3 v = normalize(-vViewPos);
         vec3 l = normalize(vec3(0.5, 0.8, 0.6));
         vec3 h = normalize(l + v);
-        
+
         float diff = max(dot(n, l), 0.0);
         float wrap = clamp(diff * 0.7 + 0.3, 0.0, 1.0);
         float spec = pow(max(dot(n, h), 0.0), 64.0) * 0.5;
         float rim = pow(1.0 - max(dot(n, v), 0.0), 2.5) * 0.3;
-        
+
         vec3 color = mix(uColorDark, uColor, wrap) + spec + rim;
         gl_FragColor = vec4(color, 1.0);
       }
     `;
-    const makeProgram = (color: [number, number, number], dark: [number, number, number]) =>
-      new Program(gl, { vertex, fragment, uniforms: { uColor: { value: color }, uColorDark: { value: dark } } });
 
-    // 2. KUBUS (Posisi: Kanan Atas)
+    const makeProgram = (
+      color: [number, number, number],
+      dark: [number, number, number]
+    ) =>
+      new Program(gl, {
+        vertex,
+        fragment,
+        uniforms: {
+          uColor: { value: color },
+          uColorDark: { value: dark },
+        },
+      });
+
     const cube = new Mesh(gl, {
-      geometry: new Box(gl, { width: 1, height: 1, depth: 1 }),
+      geometry: new Box(gl, {
+        width: 1,
+        height: 1,
+        depth: 1,
+      }),
       program: makeProgram([0.2, 0.45, 1.0], [0.0, 0.1, 0.4]),
     });
-    cube.position.set(2.8, 2.2, -1.0); 
-    cube.scale.set(1.2, 1.2, 1.2);
     cube.setParent(scene);
 
-    // 3. CINCIN (Posisi: Kanan Bawah)
     const ring = new Mesh(gl, {
-      geometry: new Torus(gl, { radius: 0.6, tube: 0.2, radialSegments: 32, tubularSegments: 64 }),
+      geometry: new Torus(gl, {
+        radius: 0.6,
+        tube: 0.2,
+        radialSegments: 32,
+        tubularSegments: 64,
+      }),
       program: makeProgram([0.15, 0.5, 1.0], [0.0, 0.1, 0.5]),
     });
-    ring.position.set(2.4, -2.5, 1.0);
     ring.rotation.x = Math.PI / 2.2;
-    ring.scale.set(1.4, 1.4, 1.4);
     ring.setParent(scene);
 
-    // 4. PENSIL (Posisi: Kanan Tengah - Skala Besar & Mendekat ke Kamera)
     const pencil = new Transform();
-    // X=2.2 (Sisi Kanan), Z=2.5 (Sangat dekat dengan kamera agar terlihat besar)
-    pencil.position.set(2.2, -0.2, 2.5); 
-    pencil.rotation.z = 0.25; // Condong miring sedikit ke arah kiri bawah
+    pencil.rotation.z = 0.25;
     pencil.rotation.x = -0.15;
-    pencil.scale.set(2.0, 2.0, 2.0); // Ukuran dilipatgandakan
     pencil.setParent(scene);
 
-    // Komponen Pensil (Tidak perlu diubah ukurannya satu per satu, karena Parent-nya sudah diperbesar)
     const pencilBody = new Mesh(gl, {
-      geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 1.1, radialSegments: 32 }),
+      geometry: new Cylinder(gl, {
+        radiusTop: 0.16,
+        radiusBottom: 0.16,
+        height: 1.1,
+        radialSegments: 32,
+      }),
       program: makeProgram([1.0, 0.72, 0.15], [0.55, 0.3, 0.0]),
     });
     pencilBody.position.y = 0.2;
     pencilBody.setParent(pencil);
 
     const pencilWood = new Mesh(gl, {
-      geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.04, height: 0.4, radialSegments: 32 }),
+      geometry: new Cylinder(gl, {
+        radiusTop: 0.16,
+        radiusBottom: 0.04,
+        height: 0.4,
+        radialSegments: 32,
+      }),
       program: makeProgram([0.9, 0.75, 0.6], [0.5, 0.35, 0.2]),
     });
     pencilWood.position.y = -0.55;
     pencilWood.setParent(pencil);
-    
+
     const pencilLead = new Mesh(gl, {
-      geometry: new Cylinder(gl, { radiusTop: 0.04, radiusBottom: 0.0, height: 0.15, radialSegments: 32 }),
+      geometry: new Cylinder(gl, {
+        radiusTop: 0.04,
+        radiusBottom: 0,
+        height: 0.15,
+        radialSegments: 32,
+      }),
       program: makeProgram([0.15, 0.15, 0.15], [0.02, 0.02, 0.02]),
     });
     pencilLead.position.y = -0.825;
     pencilLead.setParent(pencil);
 
     const pencilMetal = new Mesh(gl, {
-      geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 0.15, radialSegments: 32 }),
+      geometry: new Cylinder(gl, {
+        radiusTop: 0.16,
+        radiusBottom: 0.16,
+        height: 0.15,
+        radialSegments: 32,
+      }),
       program: makeProgram([0.8, 0.8, 0.85], [0.4, 0.4, 0.45]),
     });
     pencilMetal.position.y = 0.825;
     pencilMetal.setParent(pencil);
 
     const pencilEraser = new Mesh(gl, {
-      geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 0.25, radialSegments: 32 }),
+      geometry: new Cylinder(gl, {
+        radiusTop: 0.16,
+        radiusBottom: 0.16,
+        height: 0.25,
+        radialSegments: 32,
+      }),
       program: makeProgram([1.0, 0.6, 0.65], [0.6, 0.2, 0.25]),
     });
     pencilEraser.position.y = 1.025;
     pencilEraser.setParent(pencil);
 
-    let frame = 0;
+    let layout = resizeResponsive3D(
+      canvas,
+      renderer,
+      camera,
+      pencil,
+      cube,
+      ring
+    );
+
     const resize = () => {
-      renderer.setSize(canvas.clientWidth, canvas.clientHeight);
-      camera.perspective({ aspect: canvas.clientWidth / canvas.clientHeight });
+      layout = resizeResponsive3D(
+        canvas,
+        renderer,
+        camera,
+        pencil,
+        cube,
+        ring
+      );
     };
 
+    let frame = 0;
     const render = (time: number) => {
+      updateResponsive3DAnimation(
+        time,
+        pencil,
+        cube,
+        ring,
+        layout
+      );
+
       const t = time * 0.001;
-
-      // Animasi melayang
-      cube.rotation.x = t * 0.35;
-      cube.rotation.y = t * 0.5;
-      cube.position.y = 2.2 + Math.sin(t * 0.9) * 0.15;
-
-      ring.rotation.z = t * 0.3;
-      ring.position.y = -2.5 + Math.sin(t * 0.8 + 1.4) * 0.15;
-
-      pencil.rotation.y = t * 0.35; 
-      pencil.position.y = -0.2 + Math.sin(t * 1.1 + 0.6) * 0.15;
-
       scene.rotation.y = Math.sin(t * 0.15) * 0.05;
 
       renderer.render({ scene, camera });
       frame = requestAnimationFrame(render);
     };
 
-    resize();
     window.addEventListener("resize", resize);
     frame = requestAnimationFrame(render);
 
@@ -1174,7 +1426,13 @@ function Real3DScene() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="h-full w-full outline-none" aria-label="Objek 3D: pensil, kubus, dan cincin" />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className="h-full w-full outline-none"
+      aria-label="Objek 3D: pensil, kubus, dan cincin"
+    />
+  );
 }
 
 function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult: () => void; workRef: RefObject<HTMLElement> }) {
@@ -1634,6 +1892,7 @@ export default function Page() {
       </div>
       <ServicePackages onOrder={handleOrder} onConsult={() => setConsultationOpen(true)} />
       <WorkSection refProp={work} onOrder={handleOrder} />
+      <TestimonialsSection />
       <AvailabilityBanner />
       <TermsSection refProp={terms} />
       <Footer onOrder={handleOrder} />
