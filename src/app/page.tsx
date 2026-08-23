@@ -1476,19 +1476,23 @@ function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult:
   }, [words.length]);
 
   return (
-    // 1. Mengubah struktur menjadi relatif dengan tinggi layar yang pas
-    <section className="relative mx-auto flex min-h-[90vh] max-w-7xl items-center overflow-hidden px-5 pb-16 pt-24 sm:px-8">
-      
-      {/* 2. BACKGROUND 3D - Memenuhi seluruh section di belakang teks.
-          Diberi mask gradient supaya objek memudar ke arah kolom teks
-          (kiri) dan tetap penuh/terlihat jelas di sisi kanan sebagai
-          elemen background, bukan menimpa judul. */}
+    // 1. Struktur: kolom (3D di atas, teks di bawah) di mobile;
+    //    baris dengan 3D sebagai background di sm ke atas.
+    <section className="relative mx-auto flex min-h-[90vh] max-w-7xl flex-col items-stretch overflow-hidden px-5 pb-16 pt-24 sm:flex-row sm:items-center sm:px-8">
+
+      {/* 2. OBJEK 3D.
+          - Mobile (di bawah sm): kotak biasa dengan tinggi TETAP, di alur
+            normal dokumen, DI ATAS blok teks. Karena bukan absolute, dia
+            tidak mungkin menimpa teks — dijamin oleh layout, bukan
+            koordinat kamera yang gampang meleset per device.
+          - sm ke atas: kembali jadi layer absolute penuh section sebagai
+            background di belakang teks, dengan mask gradient supaya
+            memudar ke arah kolom teks. */}
       <div
-        className="absolute inset-0 z-0 pointer-events-none opacity-90"
-        style={{
-          maskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.35) 32%, rgba(0,0,0,0.9) 55%, black 70%)",
-          WebkitMaskImage: "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.35) 32%, rgba(0,0,0,0.9) 55%, black 70%)",
-        }}
+        className="relative z-0 mb-6 h-56 w-full pointer-events-none opacity-90 sm:absolute sm:inset-0 sm:z-0 sm:mb-0 sm:h-auto sm:w-auto
+          [mask-image:none] [-webkit-mask-image:none]
+          sm:[mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.35)_32%,rgba(0,0,0,0.9)_55%,black_70%)]
+          sm:[-webkit-mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.35)_32%,rgba(0,0,0,0.9)_55%,black_70%)]"
       >
         <Real3DScene />
       </div>
