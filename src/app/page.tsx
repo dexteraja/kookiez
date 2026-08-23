@@ -1025,17 +1025,16 @@ function Real3DScene() {
 
     const renderer = new Renderer({ canvas, alpha: true, dpr: Math.min(window.devicePixelRatio, 2) });
     const gl = renderer.gl;
+    // Transparent background
     gl.clearColor(0, 0, 0, 0);
 
-    // Kamera perspektif sungguhan (bukan bidang datar) supaya ada kedalaman nyata.
     const camera = new Camera(gl, { fov: 32, near: 0.1, far: 20 });
-    camera.position.set(0, 0.35, 5.4);
+    camera.position.set(0, 0.2, 6.0); // Kamera sedikit dijauhkan agar objek muat
     camera.lookAt([0, 0, 0]);
 
     const scene = new Transform();
 
-    // Shading berbasis normal vektor (bukan gradasi UV) — jadi tiap sisi benda
-    // benar-benar punya terang/gelap sesuai arah cahaya, ciri khas objek 3D asli.
+    // Shader baru: Ditambahkan pantulan Specular agar terlihat lebih "glossy" dan nyata
     const vertex = `
       attribute vec3 position;
       attribute vec3 normal;
@@ -1043,72 +1042,107 @@ function Real3DScene() {
       uniform mat4 projectionMatrix;
       uniform mat3 normalMatrix;
       varying vec3 vNormal;
+      varying vec3 vViewPos;
       void main() {
         vNormal = normalize(normalMatrix * normal);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vec4 viewPos = modelViewMatrix * vec4(position, 1.0);
+        vViewPos = viewPos.xyz;
+        gl_Position = projectionMatrix * viewPos;
       }
     `;
     const fragment = `
       precision highp float;
       varying vec3 vNormal;
+      varying vec3 vViewPos;
       uniform vec3 uColor;
       uniform vec3 uColorDark;
       void main() {
         vec3 n = normalize(vNormal);
-        vec3 lightDir = normalize(vec3(0.45, 0.85, 0.6));
-        float diff = max(dot(n, lightDir), 0.0);
-        float wrap = clamp(diff * 0.8 + 0.32, 0.0, 1.0);
-        float rim = pow(1.0 - max(dot(n, vec3(0.0, 0.0, 1.0)), 0.0), 2.4);
-        vec3 color = mix(uColorDark, uColor, wrap) + rim * 0.3;
+        vec3 v = normalize(-vViewPos);
+        vec3 l = normalize(vec3(0.5, 0.8, 0.6));
+        vec3 h = normalize(l + v);
+        
+        // Diffuse
+        float diff = max(dot(n, l), 0.0);
+        float wrap = clamp(diff * 0.7 + 0.3, 0.0, 1.0);
+        
+        // Specular (Pantulan mengkilap)
+        float spec = pow(max(dot(n, h), 0.0), 64.0) * 0.5;
+        
+        // Rim light (Cahaya di pinggiran)
+        float rim = pow(1.0 - max(dot(n, v), 0.0), 2.5) * 0.3;
+        
+        vec3 color = mix(uColorDark, uColor, wrap) + spec + rim;
         gl_FragColor = vec4(color, 1.0);
       }
     `;
     const makeProgram = (color: [number, number, number], dark: [number, number, number]) =>
       new Program(gl, { vertex, fragment, uniforms: { uColor: { value: color }, uColorDark: { value: dark } } });
 
-    // Objek-objek 3D bertema jasa desain: kubus "palet warna", pensil (badan + mata pensil),
-    // dan cincin "alur kreativitas" — ketiganya geometri asli, bukan gambar rata.
+    // 1. KUBUS BIRU
     const cube = new Mesh(gl, {
       geometry: new Box(gl, { width: 1, height: 1, depth: 1 }),
-      program: makeProgram([0.42, 0.62, 1.0], [0.0, 0.12, 0.55]),
+      program: makeProgram([0.2, 0.45, 1.0], [0.0, 0.1, 0.4]),
     });
-    cube.position.set(-1.15, 0.35, 0);
-    cube.scale.set(0.74, 0.74, 0.74);
+    cube.position.set(-1.25, 0.3, 0);
+    cube.scale.set(0.8, 0.8, 0.8);
     cube.setParent(scene);
 
+    // 2. CINCIN KREATIVITAS (Segmen diperbanyak agar lebih mulus)
     const ring = new Mesh(gl, {
-      geometry: new Torus(gl, { radius: 0.62, tube: 0.16, radialSegments: 12, tubularSegments: 30 }),
-      program: makeProgram([0.58, 0.86, 1.0], [0.0, 0.2, 0.65]),
+      geometry: new Torus(gl, { radius: 0.65, tube: 0.22, radialSegments: 32, tubularSegments: 64 }),
+      program: makeProgram([0.15, 0.5, 1.0], [0.0, 0.1, 0.5]),
     });
-    ring.position.set(1.05, -0.25, -0.25);
-    ring.rotation.x = Math.PI / 2.6;
+    ring.position.set(1.15, -0.4, -0.25);
+    ring.rotation.x = Math.PI / 2.2;
     ring.setParent(scene);
 
-    const cone = new Mesh(gl, {
-      geometry: new Cylinder(gl, { radiusTop: 0, radiusBottom: 0.18, height: 0.34, radialSegments: 20 }),
-      program: makeProgram([0.16, 0.16, 0.19], [0.02, 0.02, 0.03]),
-    });
-    cone.position.set(-0.2, -0.28, 0.55);
-    cone.rotation.z = Math.PI;
-    cone.setParent(scene);
-
+    // 3. PENSIL (Dirakit dengan detail: Penghapus, Besi, Badan, Kayu, Mata Pensil)
     const pencil = new Transform();
-    pencil.position.set(0.05, 0.55, 0.6);
+    pencil.position.set(0.1, 0.2, 0.6);
     pencil.rotation.z = -0.55;
+    pencil.scale.set(0.9, 0.9, 0.9);
     pencil.setParent(scene);
 
+    // Badan Pensil (Kuning)
     const pencilBody = new Mesh(gl, {
-      geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 1.35, radialSegments: 20 }),
-      program: makeProgram([1.0, 0.78, 0.32], [0.55, 0.32, 0.0]),
+      geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 1.1, radialSegments: 32 }),
+      program: makeProgram([1.0, 0.72, 0.15], [0.55, 0.3, 0.0]),
     });
+    pencilBody.position.y = 0.2;
     pencilBody.setParent(pencil);
 
-    const pencilTip = new Mesh(gl, {
-      geometry: new Cylinder(gl, { radiusTop: 0.0, radiusBottom: 0.16, height: 0.32, radialSegments: 20 }),
-      program: makeProgram([0.14, 0.14, 0.17], [0.02, 0.02, 0.03]),
+    // Bagian Kayu
+    const pencilWood = new Mesh(gl, {
+      geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.04, height: 0.4, radialSegments: 32 }),
+      program: makeProgram([0.9, 0.75, 0.6], [0.5, 0.35, 0.2]),
     });
-    pencilTip.position.y = -0.835;
-    pencilTip.setParent(pencil);
+    pencilWood.position.y = -0.55;
+    pencilWood.setParent(pencil);
+    
+    // Mata Pensil (Hitam/Grafit)
+    const pencilLead = new Mesh(gl, {
+      geometry: new Cylinder(gl, { radiusTop: 0.04, radiusBottom: 0.0, height: 0.15, radialSegments: 32 }),
+      program: makeProgram([0.15, 0.15, 0.15], [0.02, 0.02, 0.02]),
+    });
+    pencilLead.position.y = -0.825;
+    pencilLead.setParent(pencil);
+
+    // Ferrule (Besi penahan penghapus)
+    const pencilMetal = new Mesh(gl, {
+      geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 0.15, radialSegments: 32 }),
+      program: makeProgram([0.8, 0.8, 0.85], [0.4, 0.4, 0.45]),
+    });
+    pencilMetal.position.y = 0.825;
+    pencilMetal.setParent(pencil);
+
+    // Penghapus (Pink)
+    const pencilEraser = new Mesh(gl, {
+      geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 0.25, radialSegments: 32 }),
+      program: makeProgram([1.0, 0.6, 0.65], [0.6, 0.2, 0.25]),
+    });
+    pencilEraser.position.y = 1.025;
+    pencilEraser.setParent(pencil);
 
     let frame = 0;
     const resize = () => {
@@ -1121,13 +1155,13 @@ function Real3DScene() {
 
       cube.rotation.x = t * 0.35;
       cube.rotation.y = t * 0.5;
-      cube.position.y = 0.35 + Math.sin(t * 0.9) * 0.12;
+      cube.position.y = 0.3 + Math.sin(t * 0.9) * 0.12;
 
       ring.rotation.z = t * 0.3;
-      ring.position.y = -0.25 + Math.sin(t * 0.8 + 1.4) * 0.14;
+      ring.position.y = -0.4 + Math.sin(t * 0.8 + 1.4) * 0.14;
 
-      pencil.rotation.y = Math.sin(t * 0.6) * 0.5;
-      pencil.position.y = 0.55 + Math.sin(t * 1.1 + 0.6) * 0.1;
+      pencil.rotation.y = t * 0.5; // Pensil diputar sedikit agar dimensinya terlihat
+      pencil.position.y = 0.2 + Math.sin(t * 1.1 + 0.6) * 0.1;
 
       scene.rotation.y = Math.sin(t * 0.18) * 0.12;
 
@@ -1146,7 +1180,7 @@ function Real3DScene() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="h-full w-full" aria-label="Objek 3D: pensil, kubus palet warna, dan cincin kreativitas" />;
+  return <canvas ref={canvasRef} className="h-full w-full outline-none" aria-label="Objek 3D: pensil, kubus, dan cincin" />;
 }
 
 function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult: () => void; workRef: RefObject<HTMLElement> }) {
@@ -1379,7 +1413,7 @@ function WorkLightbox({ item, onClose }: { item: DisplayWorkItem | null; onClose
         className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] flex flex-col"
       >
         {/* Container Gambar (Size Asli & Uncropped) */}
-        <div
+        <div 
           className="relative w-full bg-[#1A1A1E]/5 flex items-center justify-center overflow-hidden shrink-0"
           style={{ backgroundColor: item.hue }}
         >
