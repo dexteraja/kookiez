@@ -1025,17 +1025,15 @@ function Real3DScene() {
 
     const renderer = new Renderer({ canvas, alpha: true, dpr: Math.min(window.devicePixelRatio, 2) });
     const gl = renderer.gl;
-    // Transparent background
     gl.clearColor(0, 0, 0, 0);
 
-    const camera = new Camera(gl, { fov: 32, near: 0.1, far: 20 });
-    // Semakin KECIL angkanya (misal 3.2), objek akan makin BESAR/DEKAT
-camera.position.set(0, 0.1, 3.2); // Kamera sedikit dijauhkan agar objek muat
+    // Kamera dimundurkan (Z = 5.2) agar seluruh objek muat tanpa terpotong
+    const camera = new Camera(gl, { fov: 35, near: 0.1, far: 20 });
+    camera.position.set(0, 0, 5.2);
     camera.lookAt([0, 0, 0]);
 
     const scene = new Transform();
 
-    // Shader baru: Ditambahkan pantulan Specular agar terlihat lebih "glossy" dan nyata
     const vertex = `
       attribute vec3 position;
       attribute vec3 normal;
@@ -1063,14 +1061,9 @@ camera.position.set(0, 0.1, 3.2); // Kamera sedikit dijauhkan agar objek muat
         vec3 l = normalize(vec3(0.5, 0.8, 0.6));
         vec3 h = normalize(l + v);
         
-        // Diffuse
         float diff = max(dot(n, l), 0.0);
         float wrap = clamp(diff * 0.7 + 0.3, 0.0, 1.0);
-        
-        // Specular (Pantulan mengkilap)
         float spec = pow(max(dot(n, h), 0.0), 64.0) * 0.5;
-        
-        // Rim light (Cahaya di pinggiran)
         float rim = pow(1.0 - max(dot(n, v), 0.0), 2.5) * 0.3;
         
         vec3 color = mix(uColorDark, uColor, wrap) + spec + rim;
@@ -1080,32 +1073,32 @@ camera.position.set(0, 0.1, 3.2); // Kamera sedikit dijauhkan agar objek muat
     const makeProgram = (color: [number, number, number], dark: [number, number, number]) =>
       new Program(gl, { vertex, fragment, uniforms: { uColor: { value: color }, uColorDark: { value: dark } } });
 
-    // 1. KUBUS BIRU
+    // 1. KUBUS BIRU (Posisi digeser agak kiri & dikecilkan sedikit)
     const cube = new Mesh(gl, {
       geometry: new Box(gl, { width: 1, height: 1, depth: 1 }),
       program: makeProgram([0.2, 0.45, 1.0], [0.0, 0.1, 0.4]),
     });
-    cube.position.set(-1.25, 0.3, 0);
-   cube.scale.set(1.2, 1.2, 1.2);
+    cube.position.set(-1.1, 0.1, 0);
+    cube.scale.set(0.65, 0.65, 0.65);
     cube.setParent(scene);
 
-    // 2. CINCIN KREATIVITAS (Segmen diperbanyak agar lebih mulus)
+    // 2. CINCIN BIRU (Posisi kanan bawah)
     const ring = new Mesh(gl, {
-      geometry: new Torus(gl, { radius: 0.65, tube: 0.22, radialSegments: 32, tubularSegments: 64 }),
+      geometry: new Torus(gl, { radius: 0.55, tube: 0.18, radialSegments: 32, tubularSegments: 64 }),
       program: makeProgram([0.15, 0.5, 1.0], [0.0, 0.1, 0.5]),
     });
-    ring.position.set(1.15, -0.4, -0.25);
+    ring.position.set(1.0, -0.3, -0.2);
     ring.rotation.x = Math.PI / 2.2;
     ring.setParent(scene);
 
-    // 3. PENSIL (Dirakit dengan detail: Penghapus, Besi, Badan, Kayu, Mata Pensil)
+    // 3. PENSIL (Ditengah dengan skala pas)
     const pencil = new Transform();
-    pencil.position.set(0.1, 0.2, 0.6);
-    pencil.rotation.z = -0.55;
-    pencil.scale.set(1.4, 1.4, 1.4);
+    pencil.position.set(0.0, -0.1, 0.4);
+    pencil.rotation.z = -0.4;
+    pencil.scale.set(0.65, 0.65, 0.65);
     pencil.setParent(scene);
 
-    // Badan Pensil (Kuning)
+    // Badan Pensil
     const pencilBody = new Mesh(gl, {
       geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 1.1, radialSegments: 32 }),
       program: makeProgram([1.0, 0.72, 0.15], [0.55, 0.3, 0.0]),
@@ -1113,7 +1106,7 @@ camera.position.set(0, 0.1, 3.2); // Kamera sedikit dijauhkan agar objek muat
     pencilBody.position.y = 0.2;
     pencilBody.setParent(pencil);
 
-    // Bagian Kayu
+    // Kayu
     const pencilWood = new Mesh(gl, {
       geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.04, height: 0.4, radialSegments: 32 }),
       program: makeProgram([0.9, 0.75, 0.6], [0.5, 0.35, 0.2]),
@@ -1121,7 +1114,7 @@ camera.position.set(0, 0.1, 3.2); // Kamera sedikit dijauhkan agar objek muat
     pencilWood.position.y = -0.55;
     pencilWood.setParent(pencil);
     
-    // Mata Pensil (Hitam/Grafit)
+    // Mata Pensil
     const pencilLead = new Mesh(gl, {
       geometry: new Cylinder(gl, { radiusTop: 0.04, radiusBottom: 0.0, height: 0.15, radialSegments: 32 }),
       program: makeProgram([0.15, 0.15, 0.15], [0.02, 0.02, 0.02]),
@@ -1129,7 +1122,7 @@ camera.position.set(0, 0.1, 3.2); // Kamera sedikit dijauhkan agar objek muat
     pencilLead.position.y = -0.825;
     pencilLead.setParent(pencil);
 
-    // Ferrule (Besi penahan penghapus)
+    // Besi Ring
     const pencilMetal = new Mesh(gl, {
       geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 0.15, radialSegments: 32 }),
       program: makeProgram([0.8, 0.8, 0.85], [0.4, 0.4, 0.45]),
@@ -1137,7 +1130,7 @@ camera.position.set(0, 0.1, 3.2); // Kamera sedikit dijauhkan agar objek muat
     pencilMetal.position.y = 0.825;
     pencilMetal.setParent(pencil);
 
-    // Penghapus (Pink)
+    // Penghapus
     const pencilEraser = new Mesh(gl, {
       geometry: new Cylinder(gl, { radiusTop: 0.16, radiusBottom: 0.16, height: 0.25, radialSegments: 32 }),
       program: makeProgram([1.0, 0.6, 0.65], [0.6, 0.2, 0.25]),
@@ -1156,15 +1149,15 @@ camera.position.set(0, 0.1, 3.2); // Kamera sedikit dijauhkan agar objek muat
 
       cube.rotation.x = t * 0.35;
       cube.rotation.y = t * 0.5;
-      cube.position.y = 0.3 + Math.sin(t * 0.9) * 0.12;
+      cube.position.y = 0.1 + Math.sin(t * 0.9) * 0.08;
 
       ring.rotation.z = t * 0.3;
-      ring.position.y = -0.4 + Math.sin(t * 0.8 + 1.4) * 0.14;
+      ring.position.y = -0.3 + Math.sin(t * 0.8 + 1.4) * 0.08;
 
-      pencil.rotation.y = t * 0.5; // Pensil diputar sedikit agar dimensinya terlihat
-      pencil.position.y = 0.2 + Math.sin(t * 1.1 + 0.6) * 0.1;
+      pencil.rotation.y = t * 0.5;
+      pencil.position.y = -0.1 + Math.sin(t * 1.1 + 0.6) * 0.08;
 
-      scene.rotation.y = Math.sin(t * 0.18) * 0.12;
+      scene.rotation.y = Math.sin(t * 0.18) * 0.1;
 
       renderer.render({ scene, camera });
       frame = requestAnimationFrame(render);
