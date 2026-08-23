@@ -14,12 +14,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSession, signIn, signOut } from "next-auth/react";
 import {
-  useLang, useServices, useBudgetTiers, useWork, useTerms, useTestimonials,
+  useLang, useServices, useBudgetTiers, useTerms, useTestimonials,
   type ServiceId, type BudgetId, type ServiceItem, type BudgetTier, type WorkItem, type TermItem,
 } from "@/lib/i18n";
 import { clearOrderDraft, getOrderDraft, saveOrder, saveOrderDraft, generateOrderCode, type StoredOrder } from "@/lib/orders";
 import { getSiteSettings, SITE_SETTINGS_UPDATED_EVENT, type SiteSettings } from "@/lib/site-settings";
-import { getCustomWorkItems, getHiddenDefaultIds, PORTFOLIO_UPDATED_EVENT, type CustomWorkItem } from "@/lib/portfolio";
+import { getCustomWorkItems, fetchPublishedPortfolio, PORTFOLIO_UPDATED_EVENT, type CustomWorkItem } from "@/lib/portfolio";
 
 /* ------------------------------------------------------------------ */
 /*  Konfigurasi CS WhatsApp — ganti nomor & pesan default di sini      */
@@ -1234,21 +1234,25 @@ function WorkLightbox({ item, onClose }: { item: DisplayWorkItem | null; onClose
 
 function WorkSection({ refProp, onOrder }: { refProp: RefObject<HTMLElement>; onOrder: () => void }) {
   const { t } = useLang();
-  const defaultWork = useWork();
   const services = useServices();
   const [filter, setFilter] = useState<ServiceId | "all">("all");
   const [active, setActive] = useState<DisplayWorkItem | null>(null);
-  const [work, setWork] = useState<DisplayWorkItem[]>(defaultWork);
+  const [work, setWork] = useState<DisplayWorkItem[]>([]);
 
   useEffect(() => {
-    const sync = () => {
-      const hidden = getHiddenDefaultIds();
-      setWork([...getCustomWorkItems(), ...defaultWork.filter((item) => !hidden.includes(item.id))]);
+    let cancelled = false;
+    const sync = async () => {
+      const published = await fetchPublishedPortfolio();
+      if (cancelled) return;
+      setWork([...getCustomWorkItems(), ...published]);
     };
     sync();
     window.addEventListener(PORTFOLIO_UPDATED_EVENT, sync);
-    return () => window.removeEventListener(PORTFOLIO_UPDATED_EVENT, sync);
-  }, [defaultWork]);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(PORTFOLIO_UPDATED_EVENT, sync);
+    };
+  }, []);
 
   const filtered = filter === "all" ? work : work.filter((w) => w.category === filter);
 

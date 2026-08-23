@@ -7,7 +7,7 @@ import Link from "next/link";
 import { ArrowLeft, AlertTriangle, LogOut } from "lucide-react";
 import { useLang, useServices, type ServiceId } from "@/lib/i18n";
 import { getAllOrders, updateOrderStatus, type StoredOrder, type OrderStatus } from "@/lib/orders";
-import { addWorkItem, deleteWorkItem, getCustomWorkItems, getHiddenDefaultIds, toggleDefaultVisibility, updateWorkItem, type CustomWorkItem } from "@/lib/portfolio";
+import { addWorkItem, deleteWorkItem, getCustomWorkItems, updateWorkItem, type CustomWorkItem } from "@/lib/portfolio";
 import { getSiteSettings, saveSiteSettings, type SiteSettings } from "@/lib/site-settings";
 
 const STATUS_OPTIONS: OrderStatus[] = ["pending", "progress", "review", "done"];
@@ -19,13 +19,12 @@ export default function AdminPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<StoredOrder[]>([]);
   const [works, setWorks] = useState<CustomWorkItem[]>([]);
-  const [hiddenDefaults, setHiddenDefaults] = useState<number[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({ availability: "available", note: "Menerima proyek baru minggu ini." });
   const emptyWork = { title: "", tag: "", category: "logo" as ServiceId, hue: "#0038FF", image: "", description: "" };
   const [workForm, setWorkForm] = useState(emptyWork);
 
-  const refreshPortfolio = () => { setWorks(getCustomWorkItems()); setHiddenDefaults(getHiddenDefaultIds()); };
+  const refreshPortfolio = () => { setWorks(getCustomWorkItems()); };
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -94,8 +93,8 @@ export default function AdminPage() {
           </form>
           <div className="mt-4 space-y-2">
             {works.map((work) => <div key={work.id} className="flex items-center justify-between gap-3 border border-[#1A1A1E]/10 rounded-md p-3 text-sm"><span className="truncate"><b>{work.title}</b> <span className="text-[#1A1A1E]/45">{work.tag}</span></span><span className="flex gap-3 shrink-0"><button onClick={() => { setEditingId(work.id); setWorkForm({ title: work.title, tag: work.tag, category: work.category as ServiceId, hue: work.hue, image: work.image || "", description: work.description || "" }); }} className="text-[#0038FF]">Edit</button><button onClick={() => { deleteWorkItem(work.id); refreshPortfolio(); }} className="text-red-700">Hapus</button></span></div>)}
-            {[1,2,3,4,5,6].map((id) => <button key={id} onClick={() => { toggleDefaultVisibility(id); refreshPortfolio(); }} className="w-full text-left flex justify-between gap-3 border border-dashed border-[#1A1A1E]/15 rounded-md p-3 text-xs text-[#1A1A1E]/60"><span>Karya bawaan #{String(id).padStart(3, "0")}</span><span>{hiddenDefaults.includes(id) ? "Tampilkan" : "Sembunyikan"}</span></button>)}
           </div>
+          <p className="mt-4 text-xs text-[#1A1A1E]/45">Karya utama (katalog inti) dikelola langsung lewat file <code className="px-1 py-0.5 bg-[#1A1A1E]/5 rounded">public/data/portfolio.json</code>. Karya yang ditambahkan di sini hanya tersimpan di browser ini.</p>
         </section>
 
         {orders.length === 0 ? (
