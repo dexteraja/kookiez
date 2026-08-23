@@ -1027,7 +1027,7 @@ function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult:
       <div className="grid items-center gap-12 lg:grid-cols-[1fr_.85fr] lg:gap-8">
         <div className="relative z-[1] max-w-2xl">
           <p className="mb-5 font-mono text-xs tracking-[.22em] text-[#0038FF]">{t("hero_kicker")}</p>
-          <h1 className="max-w-2xl font-heading text-[clamp(3.2rem,7vw,6.75rem)] font-semibold leading-[.88] tracking-[-0.06em] text-[#1A1A1E]">
+          <h1 className="max-w-2xl font-heading text-[clamp(2.65rem,5.8vw,5.35rem)] font-semibold leading-[.92] tracking-[-0.055em] text-[#1A1A1E]">
             {t("hero_need")} {" "}
             <span className="inline-block h-[.9em] overflow-hidden align-bottom text-[#0038FF]">
               <AnimatePresence mode="wait">
