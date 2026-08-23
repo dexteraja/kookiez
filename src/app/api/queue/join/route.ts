@@ -64,23 +64,21 @@ export async function POST(req: NextRequest) {
       settings = await settingsCollection.findOne({ key: "global" });
     }
     const maxSlots = settings?.maxSlots ?? 9;
-    if (settings && typeof settings.activeSlots !== "number") {
-      const currentActive = await ordersCollection.countDocuments({ status: { $in: ["pending", "progress"] } });
-      await settingsCollection.updateOne({ key: "global" }, { $set: { activeSlots: currentActive } });
-    }
-
-    // Reserve capacity atomically so simultaneous checkouts cannot take the last slot.
-    const reservation = await settingsCollection.findOneAndUpdate(
-      { key: "global", maxSlots, activeSlots: { $lt: maxSlots } },
-      { $inc: { activeSlots: 1 } },
-      { returnDocument: "after" }
-    );
-    if (!reservation) {
+    const activeCount = await ordersCollection.countDocuments({
+      status: { $in: ["pending", "progress"] },
+    });
+    if (activeCount >= maxSlots) {
       return NextResponse.json({ error: "Queue is full. No slots available." }, { status: 409 });
     }
 
-    const activeCount = reservation.activeSlots ?? 1;
-    const queuePosition = activeCount;
+    // Keep the denormalized counter informational only. Capacity is always based on orders.
+    await settingsCollection.updateOne(
+      { key: "global" },
+      { $set: { activeSlots: activeCount + 1, updatedAt: new Date() } }
+    );
+
+    const reservedCount = activeCount + 1;
+    const queuePosition = reservedCount;
     const orderCode = generateOrderCode();
 
     const orderDoc = {
