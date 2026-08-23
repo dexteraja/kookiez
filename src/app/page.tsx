@@ -1022,8 +1022,9 @@ function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult:
   }, [words.length]);
 
   return (
-    <section className="max-w-6xl mx-auto px-6 pt-14 pb-16 sm:pt-20 sm:pb-24">
-      <div className="grid lg:grid-cols-[1.1fr_.9fr] gap-12 lg:gap-8 items-center">
+    <section className="relative max-w-6xl mx-auto px-6 pt-10 pb-14 sm:pt-16 sm:pb-20">
+      <div className="absolute inset-x-6 top-4 h-px bg-[#1A1A1E]/10" />
+      <div className="grid lg:grid-cols-[1.05fr_.95fr] gap-10 lg:gap-6 items-center">
       <div>
       <p className="font-mono text-xs tracking-widest text-[#0038FF] mb-5">{t("hero_kicker")}</p>
       <h1 className="font-heading text-5xl sm:text-7xl text-[#1A1A1E] max-w-3xl leading-[.9] tracking-[-0.035em]">
