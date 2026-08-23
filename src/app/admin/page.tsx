@@ -60,6 +60,8 @@ export default function AdminPage() {
     note: "",
   });
   const [note, setNote] = useState("");
+  const [workJson, setWorkJson] = useState("[]");
+  const [workMessage, setWorkMessage] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [updatingSlot, setUpdatingSlot] = useState(false);
@@ -97,8 +99,24 @@ export default function AdminPage() {
   useEffect(() => {
     if ((session?.user as { role?: string })?.role === "admin") {
       fetchAdminData();
+      fetch("/api/admin/portfolio").then((res) => res.ok ? res.json() : null).then((data) => {
+        if (data) setWorkJson(JSON.stringify(data.items, null, 2));
+      }).catch(() => {});
     }
   }, [session, fetchAdminData]);
+
+  const saveWorkJson = async () => {
+    try {
+      const items = JSON.parse(workJson);
+      const res = await fetch("/api/admin/portfolio", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setWorkJson(JSON.stringify(data.items, null, 2));
+      setWorkMessage("Karya Kami tersimpan.");
+    } catch (error) {
+      setWorkMessage(error instanceof Error ? error.message : "JSON tidak valid.");
+    }
+  };
 
   useEffect(() => {
     if ((session?.user as { role?: string })?.role !== "admin") return;
@@ -356,6 +374,17 @@ export default function AdminPage() {
               ))}
             </div>
           </div>
+        </section>
+
+        <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
+          <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">CONTENT CONFIG</p>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="font-heading text-xl font-semibold">Karya Kami</h2>
+            <button onClick={saveWorkJson} className="bg-[#0038FF] text-white rounded-lg px-4 py-2 text-sm font-medium">Simpan JSON</button>
+          </div>
+          <p className="text-sm text-[#1A1A1E]/55 mb-4">Kelola daftar karya tanpa mengubah kode. Gunakan format array JSON dengan kolom id, klien, kategori, tahun, span, image, hue, dan deskripsi.</p>
+          <textarea value={workJson} onChange={(e) => setWorkJson(e.target.value)} rows={12} spellCheck={false} className="w-full rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] p-3 font-mono text-xs leading-relaxed focus:outline-none focus:border-[#0038FF]" aria-label="Konfigurasi Karya Kami dalam JSON" />
+          {workMessage && <p className="mt-2 text-sm text-[#0038FF]">{workMessage}</p>}
         </section>
 
         {/* Orders Table */}

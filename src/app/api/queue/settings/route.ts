@@ -26,9 +26,14 @@ export async function GET() {
       settings = defaultSettings;
     }
 
-    const activeOrders = await db
-      .collection("orders")
-      .countDocuments({ status: { $in: ["pending", "progress"] } });
+    // Always derive capacity from orders. The cached counter can drift after retries or status changes.
+    const activeOrders = await db.collection("orders").countDocuments({
+      status: { $in: ["pending", "progress"] },
+    });
+    await db.collection("queue_settings").updateOne(
+      { key: QUEUE_KEY },
+      { $set: { activeSlots: activeOrders, updatedAt: new Date() } }
+    );
 
     return NextResponse.json({
       maxSlots: settings.maxSlots,

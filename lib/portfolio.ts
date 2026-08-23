@@ -139,7 +139,7 @@ function mapKategoriToCategory(kategori: string): ServiceId | "lainnya" {
 
 export async function fetchPublishedPortfolio(): Promise<CustomWorkItem[]> {
   try {
-    const res = await fetch("/data/portfolio.json", { cache: "no-store" });
+    const res = await fetch("/api/portfolio", { cache: "no-store" });
     if (!res.ok) return [];
     const raw = (await res.json()) as RawPortfolioJsonItem[];
     if (!Array.isArray(raw)) return [];
