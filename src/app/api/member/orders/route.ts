@@ -1,0 +1,23 @@
+import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/auth-helpers";
+import { connectToDatabase } from "@/lib/mongodb";
+
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  const access = await requireUser();
+  if ("response" in access) return access.response;
+  try {
+    const { db } = await connectToDatabase();
+    const orders = await db.collection("orders").find({
+      $or: [{ userId: access.user.id }, { userId: { $exists: false }, customerEmail: access.user.email }],
+    }).sort({ createdAt: -1 }).limit(50).project({
+      _id: 0, code: 1, status: 1, service: 1, budgetLabel: 1, deadline: 1,
+      plan: 1, method: 1, amount: 1, isCustom: 1, paymentRoute: 1,
+      paymentStatus: 1, queuePosition: 1, createdAt: 1,
+    }).toArray();
+    return NextResponse.json({ orders });
+  } catch {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

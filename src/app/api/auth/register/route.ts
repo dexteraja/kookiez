@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     const email = parsed.data.email.toLowerCase();
     const users = db.collection("users");
     if (await users.findOne({ email })) return NextResponse.json({ error: "Email sudah terdaftar." }, { status: 409 });
-    await users.insertOne({ email, name: parsed.data.name, passwordHash: await hashPassword(parsed.data.password), role: "member", createdAt: new Date(), updatedAt: new Date() });
+    await users.insertOne({ email, name: parsed.data.name, passwordHash: await hashPassword(parsed.data.password), role: "member", status: "active", failedLoginCount: 0, createdAt: new Date(), updatedAt: new Date() });
     return NextResponse.json({ ok: true });
   } catch { return NextResponse.json({ error: "Database belum tersedia." }, { status: 503 }); }
 }

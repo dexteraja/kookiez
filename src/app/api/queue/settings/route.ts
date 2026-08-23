@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { UpdateQueueSettingsSchema } from "@/lib/validation";
 import { sseBroadcaster } from "@/lib/sse/broadcaster";
-import { auth } from "@/auth";
+import { requireAdmin } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -54,10 +54,8 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session || (session.user as { role?: string })?.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const access = await requireAdmin();
+    if ("response" in access) return access.response;
 
     const body = await req.json();
     const parsed = UpdateQueueSettingsSchema.safeParse(body);

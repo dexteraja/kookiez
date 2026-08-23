@@ -12,6 +12,7 @@ export const JoinQueueSchema = z.object({
   isCustom: z.boolean().optional().default(false),
   fileNames: z.array(z.string().trim().min(1).max(255)).max(10).optional().default([]),
   customerEmail: z.string().email().nullable().optional().default(null),
+  idempotencyKey: z.string().trim().min(8).max(128).optional(),
 });
 
 export type JoinQueueInput = z.infer<typeof JoinQueueSchema>;
@@ -24,6 +25,14 @@ export const UpdateQueueSettingsSchema = z.object({
   maxSlots: z.number().int().min(1).max(999),
   note: z.string().optional().default(""),
 });
+
+export const SiteSettingsSchema = z.object({
+  onlinePaymentEnabled: z.boolean(),
+  whatsappCsNumber: z.string().regex(/^\d{8,15}$/, "Invalid WhatsApp number"),
+  whatsappFallbackMessage: z.string().trim().min(1).max(500),
+});
+
+export type SiteSettingsInput = z.infer<typeof SiteSettingsSchema>;
 
 export const TrackOrderSchema = z.object({
   code: z.string().min(1, "Order code is required"),

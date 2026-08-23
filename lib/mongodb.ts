@@ -42,7 +42,14 @@ export function getCollection<T extends Document = any>(name: string): Collectio
 export async function ensureIndexes() {
   const { db } = await connectToDatabase();
 
+  await db.collection("users").createIndex({ email: 1 }, { unique: true });
+  await db.collection("users").createIndex({ role: 1, status: 1 });
+  await db.collection("auth_events").createIndex({ email: 1, createdAt: -1 });
+  await db.collection("auth_events").createIndex({ createdAt: 1 }, { expireAfterSeconds: 7776000 });
+  await db.collection("site_settings").createIndex({ key: 1 }, { unique: true });
   await db.collection("orders").createIndex({ code: 1 }, { unique: true });
+  await db.collection("orders").createIndex({ userId: 1, createdAt: -1 });
+  await db.collection("orders").createIndex({ customerEmail: 1, createdAt: -1 });
   await db.collection("orders").createIndex({ status: 1 });
   await db.collection("orders").createIndex({ queuePosition: 1 });
   await db.collection("orders").createIndex({ createdAt: -1 });

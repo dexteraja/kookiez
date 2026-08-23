@@ -1,9 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
-import { connectToDatabase } from "@/lib/mongodb";
-import { verifyPassword } from "@/lib/password";
-import { consumeOtp, createAndSendOtp } from "@/lib/otp";
+import { bootstrapAdminIfNeeded, getUserByEmail, normalizeEmail, verifyUserPassword } from "@/lib/users";
 
 /* ------------------------------------------------------------------ */
 /*  Role admin — DEMO: daftar email & password di sini. Untuk          */
@@ -16,22 +14,7 @@ import { consumeOtp, createAndSendOtp } from "@/lib/otp";
 /*  - Email lain (member biasa) bisa langsung masuk pakai Google,      */
 /*    atau pakai email/password tanpa syarat tambahan.                 */
 /* ------------------------------------------------------------------ */
-const ADMIN_EMAILS = (process.env.AUTH_ADMIN_EMAILS ?? "admin@kookiez.com")
-  .split(",")
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean);
-
-// Pemilik situs: tetap admin meski daftar environment belum diperbarui.
-const OWNER_ADMIN_EMAIL = "kookiezst@gmail.com";
-
-const ADMIN_PASSWORD = "kuehnjir2";
-
-function isAdminEmail(email?: string | null) {
-  const normalized = email?.trim().toLowerCase();
-  return !!normalized && (normalized === OWNER_ADMIN_EMAIL || ADMIN_EMAILS.includes(normalized));
-}
-
-export type Role = "member" | "admin" | "pending-admin";
+export type Role = "member" | "admin";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -48,38 +31,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         googleOtp: { label: "Google OTP", type: "text" },
       },
       async authorize(credentials) {
-        const email = credentials?.email?.toString().trim().toLowerCase();
+        const email = credentials?.email ? normalizeEmail(credentials.email.toString()) : "";
         const password = credentials?.password?.toString() ?? "";
-        const otp = credentials?.otp?.toString().trim() ?? "";
-        if (!email) return null;
-
-        if (isAdminEmail(email)) {
-          if (password !== ADMIN_PASSWORD) return null;
-          return { id: email, name: "Admin", email, role: "admin" as Role };
-        }
-
-        if (!otp) return null;
-
-        if (credentials?.googleOtp?.toString() === "true") {
-          if (!(await consumeOtp(email, otp))) return null;
-          return { id: email, name: email.split("@")[0], email, role: isAdminEmail(email) ? "admin" as Role : "member" as Role };
-        }
-        if (!(await consumeOtp(email, otp))) return null;
-
-        if (isAdminEmail(email)) {
-          // Admin lewat form login juga wajib password admin yang benar.
-          if (password !== ADMIN_PASSWORD) return null;
-          return { id: email, name: "Admin", email, role: "admin" as Role };
-        }
-
-        try {
-          const { db } = await connectToDatabase();
-          const member = await db.collection("users").findOne({ email });
-          if (!member || typeof member.passwordHash !== "string" || !(await verifyPassword(password, member.passwordHash))) return null;
-          return { id: String(member._id), name: String(member.name ?? email.split("@")[0]), email, role: "member" as Role };
-        } catch {
-          return null;
-        }
+        if (!email || !password) return null;
+        await bootstrapAdminIfNeeded();
+        const user = await verifyUserPassword(email, password);
+        if (!user || !user._id) return null;
+        return { id: String(user._id), name: user.name, email: user.email, role: user.role };
       },
     }),
   ],
@@ -89,9 +47,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === "google" && user.email) {
-        const email = user.email.toLowerCase();
-        await createAndSendOtp(email);
-        return `/otp?provider=google&email=${encodeURIComponent(email)}`;
+        await bootstrapAdminIfNeeded();
+        const existing = await getUserByEmail(user.email);
+        if (existing?.status === "disabled") return false;
       }
       return true;
     },
@@ -99,25 +57,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Saat baru saja berhasil login (Google atau Credentials)
       if (user) {
         const email = user.email;
-        token.otpVerified = account?.provider !== "google";
-        // Google sudah memverifikasi kepemilikan akun. Email yang ada pada
-        // allow-list langsung memperoleh role admin agar akses dashboard dan
-        // tombol Admin konsisten setelah masuk.
-        token.role = (account?.provider === "google" && isAdminEmail(email)
-          ? "pending-admin"
-          : ((user as { role?: Role }).role ?? (isAdminEmail(email) ? "admin" : "member"))) as Role;
+        token.role = ((user as { role?: Role }).role ?? "member") as Role;
+        token.sub = user.id;
         token.email = email;
-      }
-
-      // Dipanggil dari client lewat `update()` — dipakai halaman
-      // /admin-verify untuk mengonfirmasi password admin setelah Google.
-      // Verifikasi password TETAP dilakukan di server (di sini), client
-      // cuma mengirim password yang diketik, bukan menentukan role-nya.
-      if (trigger === "update" && token.role === "pending-admin") {
-        const submittedPassword = (session as { adminPassword?: string } | null)?.adminPassword;
-        if (submittedPassword === ADMIN_PASSWORD) {
-          token.role = "admin" as Role;
-        }
       }
 
       return token;
@@ -125,6 +67,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.role = token.role as Role;
+        if (token.sub) session.user.id = token.sub;
       }
       return session;
     },

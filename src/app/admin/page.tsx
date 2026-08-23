@@ -64,6 +64,10 @@ export default function AdminPage() {
   const [workMessage, setWorkMessage] = useState("");
   const [pricing, setPricing] = useState<Record<string, number | null>>({ hemat: 50000, standar: 150000, lengkap: 350000, borongan: null });
   const [pricingMessage, setPricingMessage] = useState("");
+  const [onlinePaymentEnabled, setOnlinePaymentEnabled] = useState(false);
+  const [whatsappCsNumber, setWhatsappCsNumber] = useState("");
+  const [whatsappFallbackMessage, setWhatsappFallbackMessage] = useState("");
+  const [paymentMessage, setPaymentMessage] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [updatingSlot, setUpdatingSlot] = useState(false);
@@ -77,11 +81,28 @@ export default function AdminPage() {
     setPricingMessage(res.ok ? "Harga berhasil disimpan." : "Harga gagal disimpan.");
   };
 
+  const savePaymentSettings = async () => {
+    setPaymentMessage("Menyimpan...");
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ onlinePaymentEnabled, whatsappCsNumber, whatsappFallbackMessage }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Pengaturan gagal disimpan.");
+      setOnlinePaymentEnabled(data.onlinePaymentEnabled);
+      setWhatsappCsNumber(data.whatsappCsNumber);
+      setWhatsappFallbackMessage(data.whatsappFallbackMessage);
+      setPaymentMessage("Pengaturan pembayaran tersimpan.");
+    } catch (error) {
+      setPaymentMessage(error instanceof Error ? error.message : "Pengaturan gagal disimpan.");
+    }
+  };
+
   useEffect(() => {
     if (authStatus === "unauthenticated") router.replace("/login");
-    else if ((session?.user as { role?: string })?.role === "pending-admin")
-      router.replace("/admin-verify");
-    else if ((session?.user as { role?: string })?.role === "member") router.replace("/");
+    else if ((session?.user as { role?: string })?.role !== "admin") router.replace("/");
   }, [authStatus, session, router]);
 
   const fetchAdminData = useCallback(async () => {
@@ -110,6 +131,12 @@ export default function AdminPage() {
       fetchAdminData();
       fetch("/api/admin/portfolio").then((res) => res.ok ? res.json() : null).then((data) => {
         if (data) setWorkJson(JSON.stringify(data.items, null, 2));
+      }).catch(() => {});
+      fetch("/api/admin/settings").then((res) => res.ok ? res.json() : null).then((data) => {
+        if (!data) return;
+        setOnlinePaymentEnabled(data.onlinePaymentEnabled === true);
+        setWhatsappCsNumber(data.whatsappCsNumber ?? "");
+        setWhatsappFallbackMessage(data.whatsappFallbackMessage ?? "");
       }).catch(() => {});
     }
   }, [session, fetchAdminData]);
@@ -319,6 +346,29 @@ export default function AdminPage() {
           <div className="mt-5 flex items-center gap-3">
             <button onClick={savePricing} className="rounded-lg bg-[#0038FF] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0030DB]">Simpan harga</button>
             {pricingMessage && <span className="text-xs text-[#1A1A1E]/55" role="status">{pricingMessage}</span>}
+          </div>
+        </section>
+
+        <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
+          <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">PAYMENT SETTINGS</p>
+          <h2 className="font-heading text-xl font-semibold mb-2">Payment online</h2>
+          <label className="flex items-center gap-3 text-sm font-medium mb-5">
+            <input type="checkbox" checked={onlinePaymentEnabled} onChange={(event) => setOnlinePaymentEnabled(event.target.checked)} className="h-4 w-4 accent-[#0038FF]" />
+            Payment online aktif
+          </label>
+          <div className="grid gap-4">
+            <label className="grid gap-2 text-sm font-medium">
+              Nomor WhatsApp CS
+              <input value={whatsappCsNumber} onChange={(event) => setWhatsappCsNumber(event.target.value)} placeholder="628xxxxxxxxxx" className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm focus:border-[#0038FF] focus:outline-none" />
+            </label>
+            <label className="grid gap-2 text-sm font-medium">
+              Pesan fallback
+              <textarea value={whatsappFallbackMessage} onChange={(event) => setWhatsappFallbackMessage(event.target.value)} rows={3} className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 text-sm focus:border-[#0038FF] focus:outline-none" />
+            </label>
+          </div>
+          <div className="mt-5 flex items-center gap-3">
+            <button onClick={savePaymentSettings} className="rounded-lg bg-[#0038FF] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0030DB]">Simpan pengaturan</button>
+            {paymentMessage && <span className="text-xs text-[#1A1A1E]/55" role="status">{paymentMessage}</span>}
           </div>
         </section>
 

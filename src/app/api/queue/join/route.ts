@@ -3,7 +3,8 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { JoinQueueSchema } from "@/lib/validation";
 import { rateLimit } from "@/lib/rate-limit";
 import { sseBroadcaster } from "@/lib/sse/broadcaster";
-import { auth } from "@/auth";
+import { requireUser } from "@/lib/auth-helpers";
+import { getSiteSettings } from "@/lib/site-settings-repository";
 
 function generateOrderCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -32,14 +33,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const session = await auth();
-    const customerEmail =
-      (session?.user as { email?: string })?.email ?? null;
+    const access = await requireUser();
+    if ("response" in access) return access.response;
+    const customerEmail = access.user.email;
+    const userId = access.user.id;
 
     const body = await req.json();
     const parsed = JoinQueueSchema.safeParse({
       ...body,
       customerEmail,
+      idempotencyKey: body?.idempotencyKey ?? req.headers.get("x-idempotency-key") ?? undefined,
     });
 
     if (!parsed.success) {
@@ -51,6 +54,7 @@ export async function POST(req: NextRequest) {
 
     const { db } = await connectToDatabase();
     const data = parsed.data;
+    const siteSettings = await getSiteSettings();
 
     const settingsCollection = db.collection("queue_settings");
     const ordersCollection = db.collection("orders");
@@ -67,6 +71,20 @@ export async function POST(req: NextRequest) {
     const activeCount = await ordersCollection.countDocuments({
       status: { $in: ["pending", "progress"] },
     });
+    if (data.idempotencyKey) {
+      const existing = await ordersCollection.findOne({ idempotencyKey: data.idempotencyKey, userId });
+      if (existing) {
+        return NextResponse.json({
+          code: existing.code,
+          paymentRoute: existing.paymentRoute ?? (siteSettings.onlinePaymentEnabled ? "online_pending" : "whatsapp_fallback"),
+          whatsappUrl: existing.whatsappUrl,
+          queuePosition: existing.queuePosition,
+          activeSlots: activeCount,
+          availableSlots: Math.max(0, maxSlots - activeCount),
+          maxSlots,
+        }, { status: 200 });
+      }
+    }
     if (activeCount >= maxSlots) {
       return NextResponse.json({ error: "Queue is full. No slots available." }, { status: 409 });
     }
@@ -74,6 +92,24 @@ export async function POST(req: NextRequest) {
     const reservedCount = activeCount + 1;
     const queuePosition = reservedCount;
     const orderCode = generateOrderCode();
+    const whatsappText = [
+      siteSettings.whatsappFallbackMessage,
+      "",
+      `Kode order: ${orderCode}`,
+      `Nama: ${access.user.name ?? "-"}`,
+      `Email: ${customerEmail}`,
+      "Nomor member: -",
+      `Layanan: ${data.service}`,
+      `Paket: ${data.budgetLabel || "-"}`,
+      `Deadline: ${data.deadline || "Fleksibel"}`,
+      `Nominal: ${data.amount == null ? "Custom" : data.amount}`,
+      `Rencana pembayaran: ${data.plan}`,
+      `Metode: ${data.method}`,
+      `Brief: ${data.briefScope}`,
+      `Referensi: ${data.briefRefs || "-"}`,
+      `File: ${data.fileNames.length ? data.fileNames.join(", ") : "-"}`,
+    ].join("\n");
+    const whatsappUrl = `https://wa.me/${siteSettings.whatsappCsNumber}?text=${encodeURIComponent(whatsappText)}`;
 
     const orderDoc = {
       code: orderCode,
@@ -89,10 +125,14 @@ export async function POST(req: NextRequest) {
       briefRefs: data.briefRefs,
       fileNames: data.fileNames,
       status: "pending",
+      paymentRoute: siteSettings.onlinePaymentEnabled ? "online_pending" : "whatsapp_fallback",
+      paymentStatus: siteSettings.onlinePaymentEnabled ? "pending" : "manual_contact_required",
       queuePosition,
       customerEmail: data.customerEmail,
+      userId,
+      idempotencyKey: data.idempotencyKey,
+      whatsappUrl,
     };
-
     try {
       await ordersCollection.insertOne(orderDoc);
     } catch (insertError) {
@@ -118,6 +158,8 @@ export async function POST(req: NextRequest) {
         activeSlots: updatedActiveCount,
         availableSlots: Math.max(0, maxSlots - updatedActiveCount),
         maxSlots,
+        paymentRoute: orderDoc.paymentRoute,
+        whatsappUrl: orderDoc.paymentRoute === "whatsapp_fallback" ? whatsappUrl : undefined,
       },
     });
 
@@ -128,6 +170,8 @@ export async function POST(req: NextRequest) {
         activeSlots: updatedActiveCount,
         availableSlots: Math.max(0, maxSlots - updatedActiveCount),
         maxSlots,
+        paymentRoute: orderDoc.paymentRoute,
+        whatsappUrl: orderDoc.paymentRoute === "whatsapp_fallback" ? whatsappUrl : undefined,
       },
       { status: 201 }
     );

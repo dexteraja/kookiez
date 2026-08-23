@@ -293,6 +293,8 @@ interface SuccessData {
   method: PaymentMethod;
   amount: number | null;
   isCustom: boolean;
+  paymentRoute?: "whatsapp_fallback" | "online_pending";
+  whatsappUrl?: string;
 }
 
 interface NavRefs {
@@ -625,11 +627,13 @@ function StepCheckout({
   onChange,
   onPay,
   paying,
+  onlinePaymentEnabled,
 }: {
   order: CheckoutOrder;
   onChange: (o: OrderState) => void;
   onPay: () => void;
   paying: boolean;
+  onlinePaymentEnabled: boolean;
 }) {
   const { t } = useLang();
   const services = useServices();
@@ -715,7 +719,13 @@ function StepCheckout({
                 })}
               </div>
 
-              <PaymentMethodPanel method={order.method} />
+              {onlinePaymentEnabled ? (
+                <PaymentMethodPanel method={order.method} />
+              ) : (
+                <div className="rounded-2xl border border-[#956400]/25 bg-[#FBF3DB] p-4 mb-5 text-sm text-[#6D4A00]">
+                  Payment online sedang tidak tersedia. Setelah order tersimpan, kamu akan diarahkan ke WhatsApp CS untuk konfirmasi.
+                </div>
+              )}
 
               <div className="flex items-center justify-between border-t border-[#1A1A1E]/10 pt-4 mt-1">
                 <span className="text-sm text-[#1A1A1E]/50">{t("step4_total")}</span>
@@ -741,7 +751,7 @@ function StepCheckout({
           </>
         ) : (
           <>
-            <ShieldCheck className="w-4 h-4" /> {t("step4_confirm_pay")} {formatIDR(amount)}
+            <ShieldCheck className="w-4 h-4" /> {onlinePaymentEnabled ? `${t("step4_confirm_pay")} ${formatIDR(amount)}` : "Simpan order & buka WhatsApp"}
           </>
         )}
       </button>
@@ -809,6 +819,8 @@ function OrderModal({
   const [budgetData, setBudgetData] = useState<BudgetData>({ budget: null, deadline: "" });
   const [orderState, setOrderState] = useState<OrderState>({ plan: "deposit", method: "qris" });
   const [paying, setPaying] = useState(false);
+  const [onlinePaymentEnabled, setOnlinePaymentEnabled] = useState(false);
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const draft = getOrderDraft();
@@ -822,6 +834,13 @@ function OrderModal({
     saveOrderDraft({ service, brief: { scope: brief.scope, refs: brief.refs }, budget: budgetData.budget, deadline: budgetData.deadline, updatedAt: new Date().toISOString() });
   }, [service, brief.scope, brief.refs, budgetData.budget, budgetData.deadline]);
 
+  useEffect(() => {
+    fetch("/api/site-settings", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => setOnlinePaymentEnabled(data.onlinePaymentEnabled === true))
+      .catch(() => setOnlinePaymentEnabled(false));
+  }, []);
+
   const canNext =
     (step === 1 && service) ||
     (step === 2 && brief.scope.trim().length > 0) ||
@@ -830,6 +849,7 @@ function OrderModal({
 
   const handlePay = async () => {
     setPaying(true);
+    idempotencyKeyRef.current ??= crypto.randomUUID();
     const tier = budgetTiers.find((tItem) => tItem.id === budgetData.budget);
     const isCustom = tier?.base == null;
     const base = tier?.base ?? 0;
@@ -851,12 +871,17 @@ function OrderModal({
           briefScope: brief.scope,
           briefRefs: brief.refs,
           fileNames: brief.files.map((f) => f.name),
+          idempotencyKey: idempotencyKeyRef.current,
         }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Gagal masuk antrean");
       clearOrderDraft();
-      onSuccess({ code: result.code, service: serviceObj?.title, tier: tier?.label, deadline: budgetData.deadline, plan: orderState.plan, method: orderState.method, amount, isCustom });
+      onSuccess({ code: result.code, service: serviceObj?.title, tier: tier?.label, deadline: budgetData.deadline, plan: orderState.plan, method: orderState.method, amount, isCustom, paymentRoute: result.paymentRoute, whatsappUrl: result.whatsappUrl });
+      if (result.paymentRoute === "whatsapp_fallback" && result.whatsappUrl) {
+        const popup = window.open(result.whatsappUrl, "_blank", "noopener,noreferrer");
+        if (!popup) window.alert("Order tersimpan. Popup WhatsApp diblokir browser; gunakan tombol WhatsApp pada ringkasan order.");
+      }
       onClose();
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Gagal masuk antrean. Coba lagi.");
@@ -906,6 +931,7 @@ function OrderModal({
                   onChange={setOrderState}
                   onPay={handlePay}
                   paying={paying}
+                    onlinePaymentEnabled={onlinePaymentEnabled}
                 />
               )}
             </motion.div>
@@ -1827,7 +1853,7 @@ function WorkSection({ refProp, onOrder }: { refProp: RefObject<HTMLElement>; on
         >
           {t("work_filter_all")}
         </button>
-        {services.map((s) => (
+        {services.filter((s) => s.id !== "konsultasi").map((s) => (
           <button
             key={s.id}
             onClick={() => setFilter(s.id)}

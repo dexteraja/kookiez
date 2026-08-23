@@ -3,9 +3,9 @@ import type { BudgetId, BudgetTier, Lang } from "@/lib/i18n";
 export type PricingOverride = Record<BudgetId, number | null>;
 
 export const DEFAULT_PRICING: PricingOverride = {
-  hemat: 50000,
-  standar: 150000,
-  lengkap: 350000,
+  hemat: 70000,
+  standar: 250000,
+  lengkap: 500000,
   borongan: null,
 };
 
