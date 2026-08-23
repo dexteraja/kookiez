@@ -291,6 +291,20 @@ export default function AdminPage() {
 
         <h1 className="font-heading text-2xl font-semibold mb-6">Admin Dashboard</h1>
 
+        {/* Sales snapshot */}
+        <section className="mb-8 grid gap-3 sm:grid-cols-3">
+          {[
+            ["Total pesanan", orders.length.toString()],
+            ["Sedang berjalan", orders.filter((order) => order.status !== "done").length.toString()],
+            ["Pendapatan tercatat", new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(orders.reduce((sum, order) => sum + (order.amount ?? 0), 0))],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-2xl border border-[#1A1A1E]/10 bg-white p-5">
+              <p className="text-xs text-[#1A1A1E]/50">{label}</p>
+              <p className="mt-2 font-mono text-2xl font-semibold text-[#0038FF]">{value}</p>
+            </div>
+          ))}
+        </section>
+
         {/* Slot Management Panel */}
         <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
           <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">
