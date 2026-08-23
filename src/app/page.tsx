@@ -19,6 +19,7 @@ import {
 } from "@/lib/i18n";
 import { clearOrderDraft, getOrderDraft, saveOrderDraft } from "@/lib/orders";
 import { getCustomWorkItems, fetchPublishedPortfolio, PORTFOLIO_UPDATED_EVENT, type CustomWorkItem } from "@/lib/portfolio";
+import { Renderer, Camera, Transform, Mesh, Program, Geometry } from "ogl";
 
 /* ------------------------------------------------------------------ */
 /*  Konfigurasi CS WhatsApp — ganti nomor & pesan default di sini      */
@@ -86,6 +87,10 @@ const formatIDR = (n: number): string =>
 /* ------------------------------------------------------------------ */
 /*  Komponen kecil                                                     */
 /* ------------------------------------------------------------------ */
+
+function Skeleton({ className = "" }: { className?: string }) {
+  return <span aria-hidden="true" className={`relative block overflow-hidden rounded-xl bg-[#1A1A1E]/8 before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_1.4s_infinite] before:bg-gradient-to-r before:from-transparent before:via-white/50 before:to-transparent ${className}`} />;
+}
 
 function TicketDivider() {
   return (
@@ -1011,6 +1016,41 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
   );
 }
 
+function Real3DScene() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const renderer = new Renderer({ canvas, alpha: true, dpr: Math.min(window.devicePixelRatio, 2) });
+    const gl = renderer.gl;
+    const camera = new Camera(gl, { fov: 35, near: 0.1, far: 100 });
+    camera.position.z = 5;
+    const scene = new Transform();
+    const geometry = new Geometry(gl, {
+      position: { size: 3, data: new Float32Array([-1, -1, 0, 1, -1, 0, -1, 1, 0, 1, 1, 0]) },
+      uv: { size: 2, data: new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]) },
+      index: { data: new Uint16Array([0, 1, 2, 2, 1, 3]) },
+    });
+    const program = new Program(gl, {
+      vertex: `attribute vec3 position; attribute vec2 uv; varying vec2 vUv; uniform float uTime; void main(){ vUv=uv; vec3 p=position; p.y += sin(uTime*1.3 + p.x*3.0)*0.08; gl_Position=vec4(p,1.0); }`,
+      fragment: `precision highp float; varying vec2 vUv; uniform float uTime; void main(){ vec2 p=vUv-.5; float d=length(p); vec3 blue=vec3(.02,.22,.95); vec3 cyan=vec3(.42,.82,1.); float glow=smoothstep(.7,.05,d); float grid=step(.94,abs(sin(vUv.x*34.0))*abs(sin(vUv.y*34.0))); vec3 color=mix(blue,cyan,vUv.y*.7+sin(uTime)*.08); color+=grid*.18; gl_FragColor=vec4(color, glow*.92); }`,
+      uniforms: { uTime: { value: 0 } },
+      transparent: true,
+    });
+    const mesh = new Mesh(gl, { geometry, program });
+    mesh.scale.set(1.9, 1.9, 1);
+    mesh.setParent(scene);
+    let frame = 0;
+    const resize = () => { renderer.setSize(canvas.clientWidth, canvas.clientHeight); };
+    const render = (time: number) => { program.uniforms.uTime.value = time * 0.001; mesh.rotation.z = Math.sin(time * 0.0004) * 0.08; renderer.render({ scene, camera }); frame = requestAnimationFrame(render); };
+    resize(); window.addEventListener("resize", resize); frame = requestAnimationFrame(render);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener("resize", resize); gl.getExtension("WEBGL_lose_context")?.loseContext(); };
+  }, []);
+
+  return <canvas ref={canvasRef} className="h-full w-full" aria-label="Animasi 3D identitas Kookiez" />;
+}
+
 function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult: () => void; workRef: RefObject<HTMLElement> }) {
   const { t, lang } = useLang();
   const words = lang === "id" ? ["logo.", "banner.", "poster.", "stiker."] : ["logo.", "banner.", "poster.", "stickers."];
@@ -1049,10 +1089,12 @@ function Hero({ onOrder, onConsult, workRef }: { onOrder: () => void; onConsult:
           </div>
         </div>
         <div className="hero-art flex min-h-[300px] items-center justify-center sm:min-h-[410px]" aria-label="Objek tiga dimensi identitas Kookiez">
-          <div className="hero-float brand-stage" aria-hidden="true">
-            <div className="brand-orbit brand-orbit--one" /><div className="brand-orbit brand-orbit--two" /><div className="brand-card brand-card--back" />
-            <div className="brand-card brand-card--main flex flex-col justify-between p-5"><span className="text-[10px] font-semibold tracking-[.16em] text-[#1F6C9F]">KOOKIEZ / 26</span><div className="relative h-20 w-full"><div className="relative h-24 w-64 bg-[#0038FF] [mask-image:url(/Kookiez.webp)] [mask-position:left] [mask-repeat:no-repeat] [mask-size:contain]" /></div><span className="text-[11px] leading-snug text-[#1A1A1E]/55">Design with a point of view.</span></div>
-            <div className="brand-tile flex items-center justify-center text-[10px] font-semibold tracking-[.16em] text-[#956400]">DKV</div>
+          <div className="relative h-[300px] w-full max-w-[440px] overflow-hidden rounded-[2rem] border border-[#1A1A1E]/10 bg-[#E8F1FF] shadow-[0_24px_70px_rgba(0,56,255,0.16)]">
+            <Real3DScene />
+            <div className="pointer-events-none absolute inset-x-6 bottom-5 flex items-end justify-between text-[#1A1A1E]">
+              <span className="font-mono text-[10px] tracking-[.18em]">KOOKIEZ / 3D STUDY</span>
+              <span className="text-xs text-[#1A1A1E]/55">Shape your point of view.</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1112,17 +1154,20 @@ function AvailabilityBanner() {
   const tone = isFull ? "bg-[#FDEBEC] text-[#9F2F2D]" : isLimited ? "bg-[#FBF3DB] text-[#956400]" : "bg-[#EDF3EC] text-[#346538]";
 
   return (
-    <section className="mx-auto max-w-7xl px-5 pb-16 sm:px-8">
-      <div className="overflow-hidden rounded-[1.5rem] border border-[#1A1A1E]/10 bg-white shadow-[0_20px_60px_rgba(26,26,30,0.08)]">
-        <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1fr_280px] lg:items-center">
+    <section className="mx-auto max-w-7xl px-5 pb-20 sm:px-8" aria-live="polite">
+      <div className="overflow-hidden rounded-[2rem] border border-[#1A1A1E]/10 bg-[#1A1A1E] text-[#F9F9FB] shadow-[0_24px_70px_rgba(26,26,30,0.16)]">
+        <div className="grid gap-8 p-6 sm:p-9 lg:grid-cols-[1.1fr_.9fr] lg:items-end">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-[#0038FF]"><span className={`h-2 w-2 rounded-full ${status === "live" ? "bg-[#346538]" : status === "offline" ? "bg-[#9F2F2D]" : "bg-[#956400]"}`} />{status === "live" ? "DATA TERBARU" : status === "offline" ? "SAMBUNGAN TERPUTUS" : "MEMUAT DATA"}</div>
-            <h2 className="mt-4 max-w-xl font-heading text-3xl tracking-tight text-[#1A1A1E] sm:text-4xl">Antrean terbuka untuk pesanan baru.</h2>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-[#1A1A1E]/60">{queue?.note || "Kami sedang mengambil kapasitas terbaru."}</p>
-            <div className="mt-7 h-3 overflow-hidden rounded-full bg-[#1A1A1E]/8"><div className="h-full rounded-full bg-[#0038FF] transition-all duration-500" style={{ width: `${percent}%` }} /></div>
-            <div className="mt-3 flex justify-between text-xs text-[#1A1A1E]/55"><span>{activeSlots} dari {maxSlots || "-"} slot terisi</span><span>{percent}% terpakai</span></div>
+            <p className="font-mono text-[10px] tracking-[.2em] text-[#9DB7FF]">KAPASITAS PRODUKSI</p>
+            <h2 className="mt-4 max-w-xl font-heading text-3xl font-semibold tracking-tight sm:text-5xl">Tahu kapan waktu terbaik untuk mulai.</h2>
+            <p className="mt-4 max-w-lg text-sm leading-relaxed text-[#F9F9FB]/65">{status === "offline" ? "Kapasitas sedang tidak dapat dimuat. Coba refresh untuk melihat data terbaru." : queue?.note || "Kami sedang mengambil kapasitas terbaru."}</p>
+            {status === "loading" ? <div className="mt-8 space-y-3"><Skeleton className="h-3 w-full bg-white/10 before:via-white/20" /><div className="flex justify-between"><Skeleton className="h-3 w-28 bg-white/10 before:via-white/20" /><Skeleton className="h-3 w-16 bg-white/10 before:via-white/20" /></div></div> : <><div className="mt-8 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#9DB7FF] transition-all duration-500" style={{ width: `${percent}%` }} /></div><div className="mt-3 flex justify-between text-xs text-[#F9F9FB]/55"><span>{activeSlots} dari {maxSlots || "-"} slot terisi</span><span>{percent}% terpakai</span></div></>}
           </div>
-          <div className="rounded-xl bg-[#F3F5FF] p-5"><p className="text-xs font-semibold text-[#1A1A1E]/55">STATUS PESANAN</p><p className="mt-3 font-heading text-4xl text-[#0038FF]">{queue ? availableSlots : "-"}</p><p className="mt-1 text-sm text-[#1A1A1E]/60">slot masih tersedia</p><span className={`mt-5 inline-flex rounded-full px-3 py-1.5 text-xs font-semibold ${tone}`}>{label}</span></div>
+          <div className="rounded-2xl bg-[#F9F9FB] p-6 text-[#1A1A1E]">
+            <div className="flex items-start justify-between gap-4"><p className="text-xs font-semibold text-[#1A1A1E]/55">SLOT TERSEDIA</p><span className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${tone}`}>{status === "loading" ? "Memuat" : label}</span></div>
+            {status === "loading" ? <><Skeleton className="mt-5 h-12 w-20" /><Skeleton className="mt-3 h-4 w-36" /></> : <><p className="mt-4 font-heading text-5xl text-[#0038FF]">{availableSlots}</p><p className="mt-1 text-sm text-[#1A1A1E]/60">slot masih tersedia untuk pesanan baru</p></>}
+            <Link href="/lacak" className="mt-7 flex items-center justify-between rounded-xl bg-[#0038FF] px-4 py-3 text-sm font-medium text-white transition-transform hover:-translate-y-0.5 active:translate-y-0">Lacak pesanan <ArrowRight className="h-4 w-4" /></Link>
+          </div>
         </div>
       </div>
     </section>
