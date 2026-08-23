@@ -21,13 +21,13 @@ export default function NotFound() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
             href="/"
-            className="inline-flex items-center justify-center gap-2 bg-[#0038FF] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#0030DB] transition-colors"
+            className="inline-flex items-center justify-center gap-2 bg-[#0038FF] text-white font-medium px-6 py-3 rounded-2xl hover:bg-[#0030DB] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" /> Kembali ke Beranda
           </Link>
           <Link
             href="/lacak"
-            className="inline-flex items-center justify-center gap-2 border border-[#1A1A1E]/15 text-[#1A1A1E] font-medium px-6 py-3 rounded-lg hover:border-[#1A1A1E]/30 transition-colors"
+            className="inline-flex items-center justify-center gap-2 border border-[#1A1A1E]/15 text-[#1A1A1E] font-medium px-6 py-3 rounded-2xl hover:border-[#1A1A1E]/30 transition-colors"
           >
             Lacak Pesanan
           </Link>

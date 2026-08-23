@@ -11,7 +11,7 @@ export default function Loading() {
           <Skeleton className="h-3 w-14" />
           <Skeleton className="h-3 w-14" />
         </div>
-        <Skeleton className="h-9 w-32 rounded-lg" />
+        <Skeleton className="h-9 w-32 rounded-2xl" />
       </div>
 
       {/* Hero placeholder */}
@@ -21,8 +21,8 @@ export default function Loading() {
         <Skeleton className="h-11 w-2/3 max-w-xl mb-6" />
         <SkeletonText lines={2} className="max-w-lg mb-9" />
         <div className="flex gap-4">
-          <Skeleton className="h-12 w-44 rounded-lg" />
-          <Skeleton className="h-12 w-28 rounded-lg" />
+          <Skeleton className="h-12 w-44 rounded-2xl" />
+          <Skeleton className="h-12 w-28 rounded-2xl" />
         </div>
       </div>
 
@@ -32,7 +32,7 @@ export default function Loading() {
         <Skeleton className="h-8 w-64 mb-8" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-lg border border-[#1A1A1E]/10 overflow-hidden">
+            <div key={i} className="rounded-2xl border border-[#1A1A1E]/10 overflow-hidden">
               <Skeleton className="h-40 w-full rounded-none" />
               <div className="p-4">
                 <Skeleton className="h-3.5 w-2/3" />
