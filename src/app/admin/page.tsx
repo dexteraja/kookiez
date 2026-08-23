@@ -1,152 +1,464 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useCallback, useRef, type FormEvent } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle, LogOut } from "lucide-react";
-import { useLang, useServices, type ServiceId } from "@/lib/i18n";
-import { getAllOrders, updateOrderStatus, type StoredOrder, type OrderStatus } from "@/lib/orders";
-import { addWorkItem, deleteWorkItem, getCustomWorkItems, updateWorkItem, type CustomWorkItem } from "@/lib/portfolio";
-import { getSiteSettings, saveSiteSettings, type SiteSettings } from "@/lib/site-settings";
+import {
+  ArrowLeft, LogOut, Plus, Minus, Volume2, VolumeX,
+  Clock, Loader2, CheckCircle2, Eye, X,
+} from "lucide-react";
+import { useLang } from "@/lib/i18n";
 
-const STATUS_OPTIONS: OrderStatus[] = ["pending", "progress", "review", "done"];
+type OrderStatus = "pending" | "progress" | "review" | "done";
+
+interface OrderData {
+  code: string;
+  status: OrderStatus;
+  service: string;
+  budgetLabel: string;
+  deadline: string;
+  plan: string;
+  method: string;
+  amount: number | null;
+  isCustom: boolean;
+  briefScope: string;
+  briefRefs: string;
+  fileNames: string[];
+  queuePosition: number | null;
+  createdAt: string;
+  customerEmail: string | null;
+}
+
+interface QueueInfo {
+  maxSlots: number;
+  activeSlots: number;
+  availableSlots: number;
+  note: string;
+}
+
+function statusMeta(status: OrderStatus, t: (k: any) => string) {
+  const map = {
+    pending: { label: t("status_pending"), icon: Clock, color: "#B58900", bg: "#B5890015" },
+    progress: { label: t("status_progress"), icon: Loader2, color: "#0038FF", bg: "#0038FF15" },
+    review: { label: t("status_review"), icon: Eye, color: "#9333EA", bg: "#9333EA15" },
+    done: { label: t("status_done"), icon: CheckCircle2, color: "#16A34A", bg: "#16A34A15" },
+  } as const;
+  return map[status];
+}
 
 export default function AdminPage() {
   const { t } = useLang();
-  const services = useServices();
-  const { data: session, status } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const router = useRouter();
-  const [orders, setOrders] = useState<StoredOrder[]>([]);
-  const [works, setWorks] = useState<CustomWorkItem[]>([]);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>({ availability: "available", note: "Menerima proyek baru minggu ini." });
-  const emptyWork = { title: "", tag: "", category: "logo" as ServiceId, hue: "#0038FF", image: "", description: "" };
-  const [workForm, setWorkForm] = useState(emptyWork);
 
-  const refreshPortfolio = () => { setWorks(getCustomWorkItems()); };
+  const [orders, setOrders] = useState<OrderData[]>([]);
+  const [queueInfo, setQueueInfo] = useState<QueueInfo>({
+    maxSlots: 9,
+    activeSlots: 0,
+    availableSlots: 9,
+    note: "",
+  });
+  const [note, setNote] = useState("");
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [updatingSlot, setUpdatingSlot] = useState(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (status === "unauthenticated") router.replace("/login");
-    else if (session?.user?.role === "pending-admin") router.replace("/admin-verify");
-    else if (session?.user?.role === "member") router.replace("/");
-    else if (session?.user?.role === "admin") { setOrders(getAllOrders()); refreshPortfolio(); setSiteSettings(getSiteSettings()); }
-  }, [status, session, router]);
+    if (authStatus === "unauthenticated") router.replace("/login");
+    else if ((session?.user as { role?: string })?.role === "pending-admin")
+      router.replace("/admin-verify");
+    else if ((session?.user as { role?: string })?.role === "member") router.replace("/");
+  }, [authStatus, session, router]);
 
-  const changeStatus = (code: string, s: OrderStatus) => {
-    updateOrderStatus(code, s);
-    setOrders(getAllOrders());
+  const fetchAdminData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/orders");
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data.orders);
+        setQueueInfo({
+          maxSlots: data.maxSlots,
+          activeSlots: data.activeSlots,
+          availableSlots: data.availableSlots,
+          note: data.note,
+        });
+        setNote(data.note);
+      }
+    } catch (err) {
+      console.error("Failed to fetch admin data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if ((session?.user as { role?: string })?.role === "admin") {
+      fetchAdminData();
+    }
+  }, [session, fetchAdminData]);
+
+  useEffect(() => {
+    if ((session?.user as { role?: string })?.role !== "admin") return;
+
+    const es = new EventSource("/api/queue/stream");
+    eventSourceRef.current = es;
+
+    const playNotification = () => {
+      if (!soundEnabled) return;
+      try {
+        if (!audioRef.current) {
+          audioRef.current = new Audio(
+            "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVggoKIe2EcCj+a2/vLbx0jNGaDh4ZyXk5Qf6e4xnpPPU1ujH2EdWRRR3qev8l9VjVEZ4F9g3RkUkd6nr7IflUzQ2eBfYN0ZFJHep6+yH5VM0NngX2DdGRSR3qevsh+VTNDZ4F9g3RkUkd6nr7IflUzQ2eBfYN0ZFJHep6+yH5VM0NngX2DdGRSR3qevsh+VTNDZ4F9g3Q="
+          );
+          audioRef.current.volume = 0.3;
+        }
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
+      } catch {}
+    };
+
+    es.addEventListener("new_order", (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        setQueueInfo((prev) => ({
+          ...prev,
+          activeSlots: data.activeSlots,
+          availableSlots: data.availableSlots,
+        }));
+        playNotification();
+        fetchAdminData();
+      } catch {}
+    });
+
+    es.addEventListener("order_status", () => {
+      fetchAdminData();
+    });
+
+    es.addEventListener("slot_update", (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        setQueueInfo({
+          maxSlots: data.maxSlots,
+          activeSlots: data.activeSlots,
+          availableSlots: data.availableSlots,
+          note: data.note,
+        });
+        setNote(data.note);
+      } catch {}
+    });
+
+    es.addEventListener("queue_update", (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        setQueueInfo((prev) => ({
+          ...prev,
+          activeSlots: data.activeSlots,
+          availableSlots: data.availableSlots,
+          maxSlots: data.maxSlots,
+        }));
+      } catch {}
+    });
+
+    es.onerror = () => {
+      es.close();
+      setTimeout(() => {
+        if (eventSourceRef.current === es) {
+          const newEs = new EventSource("/api/queue/stream");
+          eventSourceRef.current = newEs;
+        }
+      }, 3000);
+    };
+
+    return () => {
+      es.close();
+      eventSourceRef.current = null;
+    };
+  }, [session, fetchAdminData, soundEnabled]);
+
+  const updateSlots = async (delta: number) => {
+    const newMax = queueInfo.maxSlots + delta;
+    if (newMax < 1) return;
+
+    setUpdatingSlot(true);
+    try {
+      const res = await fetch("/api/queue/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maxSlots: newMax, note }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setQueueInfo({
+          maxSlots: data.maxSlots,
+          activeSlots: data.activeSlots,
+          availableSlots: data.availableSlots,
+          note: data.note,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to update slots:", err);
+    } finally {
+      setUpdatingSlot(false);
+    }
   };
 
-  const saveWork = (e: FormEvent) => {
-    e.preventDefault();
-    if (!workForm.title.trim() || !workForm.tag.trim()) return;
-    if (editingId) updateWorkItem(editingId, workForm);
-    else addWorkItem(workForm);
-    setWorkForm(emptyWork); setEditingId(null); refreshPortfolio();
+  const saveNote = async () => {
+    try {
+      const res = await fetch("/api/queue/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maxSlots: queueInfo.maxSlots, note }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setQueueInfo((prev) => ({ ...prev, note: data.note }));
+      }
+    } catch (err) {
+      console.error("Failed to save note:", err);
+    }
   };
 
-  if (status === "loading" || session?.user?.role !== "admin") return null;
+  const changeStatus = async (code: string, newStatus: OrderStatus) => {
+    try {
+      const res = await fetch(`/api/orders/${code}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        fetchAdminData();
+      }
+    } catch (err) {
+      console.error("Failed to update status:", err);
+    }
+  };
+
+  if (authStatus === "loading" || (session?.user as { role?: string })?.role !== "admin") {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-[#F9F9FB] text-[#1A1A1E]">
-      <div className="max-w-4xl mx-auto px-6 py-12">
+      <div className="max-w-5xl mx-auto px-6 py-12">
         <div className="flex items-center justify-between mb-6">
-          <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-[#1A1A1E]/50 hover:text-[#1A1A1E]">
-            <ArrowLeft className="w-4 h-4" /> kookiez.
-          </Link>
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
+          <Link
+            href="/"
             className="inline-flex items-center gap-1.5 text-sm text-[#1A1A1E]/50 hover:text-[#1A1A1E]"
           >
-            <LogOut className="w-4 h-4" /> {t("admin_logout")}
-          </button>
+            <ArrowLeft className="w-4 h-4" /> kookiez.
+          </Link>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className="p-2 rounded-lg border border-[#1A1A1E]/15 hover:border-[#1A1A1E]/30 transition-colors"
+              title={soundEnabled ? "Matikan suara" : "Nyalakan suara"}
+            >
+              {soundEnabled ? (
+                <Volume2 className="w-4 h-4 text-[#1A1A1E]/60" />
+              ) : (
+                <VolumeX className="w-4 h-4 text-[#1A1A1E]/40" />
+              )}
+            </button>
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="inline-flex items-center gap-1.5 text-sm text-[#1A1A1E]/50 hover:text-[#1A1A1E]"
+            >
+              <LogOut className="w-4 h-4" /> {t("admin_logout")}
+            </button>
+          </div>
         </div>
 
-        <h1 className="font-heading text-2xl font-semibold mb-3">{t("admin_title")}</h1>
+        <h1 className="font-heading text-2xl font-semibold mb-6">Admin Dashboard</h1>
 
-        <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-8">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>{t("admin_warning")}</span>
-        </div>
+        {/* Slot Management Panel */}
+        <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
+          <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">
+            QUEUE CONTROL
+          </p>
+          <h2 className="font-heading text-xl font-semibold mb-5">
+            Manajemen Slot Antrean
+          </h2>
 
-        <section className="mb-12 border-t border-[#1A1A1E]/10 pt-8">
-          <p className="font-mono text-[10px] tracking-widest text-[#0038FF]">STATUS STUDIO</p>
-          <h2 className="font-heading text-3xl leading-none mt-2 mb-5">Ketersediaan proyek</h2>
-          <div className="border border-[#1A1A1E]/10 rounded-lg p-5 bg-white grid sm:grid-cols-[180px_1fr_auto] gap-3 items-end">
-            <label className="text-sm font-medium">Status<select value={siteSettings.availability} onChange={(e) => setSiteSettings({ ...siteSettings, availability: e.target.value as SiteSettings["availability"] })} className="mt-2 block w-full border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 bg-white text-sm"><option value="available">Slot tersedia</option><option value="limited">Slot terbatas</option><option value="closed">Antrean penuh</option></select></label>
-            <label className="text-sm font-medium">Catatan<input value={siteSettings.note} onChange={(e) => setSiteSettings({ ...siteSettings, note: e.target.value })} className="mt-2 block w-full border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm" /></label>
-            <button onClick={() => saveSiteSettings(siteSettings)} className="bg-[#1A1A1E] text-white rounded-md px-4 py-2.5 text-sm font-medium">Simpan</button>
-          </div>
-        </section>
-
-        <section className="mb-12 border-t border-[#1A1A1E]/10 pt-8">
-          <div className="flex items-end justify-between gap-4 mb-5"><div><p className="font-mono text-[10px] tracking-widest text-[#0038FF]">PORTFOLIO CMS</p><h2 className="font-heading text-3xl leading-none mt-2">Atur Karya Kami</h2></div><span className="text-xs text-[#1A1A1E]/45">Perubahan langsung tampil di landing pada browser ini.</span></div>
-          <form onSubmit={saveWork} className="grid sm:grid-cols-2 gap-3 border border-[#1A1A1E]/10 rounded-lg p-5 bg-white">
-            <input value={workForm.title} onChange={(e) => setWorkForm({ ...workForm, title: e.target.value })} placeholder="Judul karya" className="border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm" required />
-            <input value={workForm.tag} onChange={(e) => setWorkForm({ ...workForm, tag: e.target.value })} placeholder="Label kategori" className="border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm" required />
-            <select value={workForm.category} onChange={(e) => setWorkForm({ ...workForm, category: e.target.value as ServiceId })} className="border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm bg-white">{services.filter((s) => s.id !== "konsultasi").map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}</select>
-            <input value={workForm.hue} onChange={(e) => setWorkForm({ ...workForm, hue: e.target.value })} placeholder="Warna fallback, mis. #0038FF" className="border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm" />
-            <input value={workForm.image} onChange={(e) => setWorkForm({ ...workForm, image: e.target.value })} placeholder="URL gambar (opsional)" className="sm:col-span-2 border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm" />
-            <textarea value={workForm.description} onChange={(e) => setWorkForm({ ...workForm, description: e.target.value })} placeholder="Deskripsi singkat karya (opsional)" className="sm:col-span-2 border border-[#1A1A1E]/15 rounded-md px-3 py-2.5 text-sm resize-none" rows={2} />
-            <div className="sm:col-span-2 flex gap-2"><button className="bg-[#1A1A1E] text-white rounded-md px-4 py-2.5 text-sm font-medium">{editingId ? "Simpan perubahan" : "Tambah karya"}</button>{editingId && <button type="button" onClick={() => { setEditingId(null); setWorkForm(emptyWork); }} className="border border-[#1A1A1E]/15 rounded-md px-4 py-2.5 text-sm">Batal</button>}</div>
-          </form>
-          <div className="mt-4 space-y-2">
-            {works.map((work) => <div key={work.id} className="flex items-center justify-between gap-3 border border-[#1A1A1E]/10 rounded-md p-3 text-sm"><span className="truncate"><b>{work.title}</b> <span className="text-[#1A1A1E]/45">{work.tag}</span></span><span className="flex gap-3 shrink-0"><button onClick={() => { setEditingId(work.id); setWorkForm({ title: work.title, tag: work.tag, category: work.category as ServiceId, hue: work.hue, image: work.image || "", description: work.description || "" }); }} className="text-[#0038FF]">Edit</button><button onClick={() => { deleteWorkItem(work.id); refreshPortfolio(); }} className="text-red-700">Hapus</button></span></div>)}
-          </div>
-          <p className="mt-4 text-xs text-[#1A1A1E]/45">Karya utama (katalog inti) dikelola langsung lewat file <code className="px-1 py-0.5 bg-[#1A1A1E]/5 rounded">public/data/portfolio.json</code>. Karya yang ditambahkan di sini hanya tersimpan di browser ini.</p>
-        </section>
-
-        {orders.length === 0 ? (
-          <p className="text-sm text-[#1A1A1E]/50">{t("admin_empty")}</p>
-        ) : (
-          <div className="space-y-3">
-            {orders.map((o) => (
-              <div key={o.code} className="rounded-lg border border-[#1A1A1E]/10 p-4">
-                <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-                  <div>
-                    <span className="font-mono text-sm font-semibold text-[#0038FF]">{o.code}</span>
-                    <span className="text-xs text-[#1A1A1E]/40 ml-2">{new Date(o.createdAt).toLocaleString()}</span>
-                  </div>
-                  <select
-                    value={o.status}
-                    onChange={(e) => changeStatus(o.code, e.target.value as OrderStatus)}
-                    className="text-xs font-mono border border-[#1A1A1E]/15 rounded-md px-2 py-1.5 bg-white"
-                  >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {t(`status_${s}` as any)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-[#1A1A1E]/70">
-                  <div>
-                    <div className="text-[#1A1A1E]/40">{t("step4_service")}</div>
-                    <div className="font-medium">{o.service || "—"}</div>
-                  </div>
-                  <div>
-                    <div className="text-[#1A1A1E]/40">{t("step4_budget")}</div>
-                    <div className="font-medium">{o.budgetLabel || "—"}</div>
-                  </div>
-                  <div>
-                    <div className="text-[#1A1A1E]/40">{t("step4_deadline")}</div>
-                    <div className="font-medium">{o.deadline || "—"}</div>
-                  </div>
-                  <div>
-                    <div className="text-[#1A1A1E]/40">{t("step4_pay_method")}</div>
-                    <div className="font-medium">
-                      {o.plan} · {o.method}
-                    </div>
-                  </div>
-                </div>
-                {o.briefScope && (
-                  <p className="text-xs text-[#1A1A1E]/60 mt-3 pt-3 border-t border-[#1A1A1E]/10">{o.briefScope}</p>
-                )}
+          <div className="grid sm:grid-cols-3 gap-4 mb-5">
+            <div className="text-center p-4 rounded-lg bg-[#0038FF]/5 border border-[#0038FF]/10">
+              <div className="text-3xl font-mono font-bold text-[#0038FF]">
+                {queueInfo.maxSlots}
               </div>
-            ))}
+              <div className="text-xs text-[#1A1A1E]/50 mt-1">Total Slot</div>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-[#B58900]/5 border border-[#B58900]/10">
+              <div className="text-3xl font-mono font-bold text-[#B58900]">
+                {queueInfo.activeSlots}
+              </div>
+              <div className="text-xs text-[#1A1A1E]/50 mt-1">Terisi</div>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-[#16A34A]/5 border border-[#16A34A]/10">
+              <div className="text-3xl font-mono font-bold text-[#16A34A]">
+                {queueInfo.availableSlots}
+              </div>
+              <div className="text-xs text-[#1A1A1E]/50 mt-1">Tersedia</div>
+            </div>
           </div>
-        )}
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => updateSlots(-1)}
+              disabled={updatingSlot || queueInfo.maxSlots <= 1}
+              className="flex items-center justify-center w-10 h-10 rounded-lg border border-[#1A1A1E]/15 hover:border-[#1A1A1E]/30 disabled:opacity-40 transition-colors"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+            <div className="flex-1 text-center">
+              <span className="font-mono text-lg font-semibold">
+                {queueInfo.maxSlots}
+              </span>
+              <span className="text-xs text-[#1A1A1E]/50 ml-2">slot</span>
+            </div>
+            <button
+              onClick={() => updateSlots(1)}
+              disabled={updatingSlot}
+              className="flex items-center justify-center w-10 h-10 rounded-lg border border-[#1A1A1E]/15 hover:border-[#1A1A1E]/30 disabled:opacity-40 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Catatan antrean (tampil di landing page)..."
+              className="flex-1 border border-[#1A1A1E]/15 rounded-lg px-3 py-2.5 text-sm"
+            />
+            <button
+              onClick={saveNote}
+              className="bg-[#1A1A1E] text-white rounded-lg px-4 py-2.5 text-sm font-medium shrink-0"
+            >
+              Simpan
+            </button>
+          </div>
+
+          {/* Slot bar visualization */}
+          <div className="mt-5">
+            <div className="flex gap-1">
+              {Array.from({ length: queueInfo.maxSlots }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-2.5 flex-1 rounded-full transition-colors ${
+                    i < queueInfo.activeSlots
+                      ? "bg-[#0038FF]"
+                      : "bg-[#1A1A1E]/10"
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Orders Table */}
+        <section className="border border-[#1A1A1E]/10 rounded-xl bg-white overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#1A1A1E]/10">
+            <p className="font-mono text-[10px] tracking-widest text-[#0038FF]">
+              ORDERS
+            </p>
+            <h2 className="font-heading text-xl font-semibold mt-1">
+              Pesanan Masuk ({orders.length})
+            </h2>
+          </div>
+
+          {loading ? (
+            <div className="p-12 text-center text-sm text-[#1A1A1E]/40">
+              <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+              Memuat data...
+            </div>
+          ) : orders.length === 0 ? (
+            <p className="p-12 text-center text-sm text-[#1A1A1E]/50">
+              Belum ada pesanan masuk.
+            </p>
+          ) : (
+            <div className="divide-y divide-[#1A1A1E]/10">
+              {orders.map((order) => {
+                const meta = statusMeta(order.status, t);
+                const Icon = meta.icon;
+                return (
+                  <div key={order.code} className="px-6 py-4">
+                    <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-sm font-semibold text-[#0038FF]">
+                          {order.code}
+                        </span>
+                        <span
+                          className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
+                          style={{ color: meta.color, backgroundColor: meta.bg }}
+                        >
+                          <Icon
+                            className={`w-3 h-3 ${
+                              order.status === "progress" ? "animate-spin" : ""
+                            }`}
+                          />
+                          {meta.label}
+                        </span>
+                        {order.queuePosition && (
+                          <span className="text-xs font-mono text-[#1A1A1E]/40">
+                            #{order.queuePosition}
+                          </span>
+                        )}
+                      </div>
+                      <select
+                        value={order.status}
+                        onChange={(e) =>
+                          changeStatus(order.code, e.target.value as OrderStatus)
+                        }
+                        className="text-xs font-mono border border-[#1A1A1E]/15 rounded-md px-2 py-1.5 bg-white"
+                      >
+                        <option value="pending">{t("status_pending")}</option>
+                        <option value="progress">{t("status_progress")}</option>
+                        <option value="review">{t("status_review")}</option>
+                        <option value="done">{t("status_done")}</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs text-[#1A1A1E]/70">
+                      <div>
+                        <div className="text-[#1A1A1E]/40">Layanan</div>
+                        <div className="font-medium">{order.service || "—"}</div>
+                      </div>
+                      <div>
+                        <div className="text-[#1A1A1E]/40">Budget</div>
+                        <div className="font-medium">{order.budgetLabel || "—"}</div>
+                      </div>
+                      <div>
+                        <div className="text-[#1A1A1E]/40">Tenggat</div>
+                        <div className="font-medium">{order.deadline || "—"}</div>
+                      </div>
+                      <div>
+                        <div className="text-[#1A1A1E]/40">Pembayaran</div>
+                        <div className="font-medium">
+                          {order.plan} · {order.method}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[#1A1A1E]/40">Waktu</div>
+                        <div className="font-medium">
+                          {new Date(order.createdAt).toLocaleString("id-ID")}
+                        </div>
+                      </div>
+                    </div>
+
+                    {order.briefScope && (
+                      <p className="text-xs text-[#1A1A1E]/55 mt-3 pt-3 border-t border-[#1A1A1E]/8 line-clamp-2">
+                        {order.briefScope}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
