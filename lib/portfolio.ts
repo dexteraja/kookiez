@@ -141,7 +141,8 @@ export async function fetchPublishedPortfolio(): Promise<CustomWorkItem[]> {
   try {
     const res = await fetch("/api/portfolio", { cache: "no-store" });
     if (!res.ok) return [];
-    const raw = (await res.json()) as RawPortfolioJsonItem[];
+    const payload = await res.json() as { items?: RawPortfolioJsonItem[] } | RawPortfolioJsonItem[];
+    const raw = Array.isArray(payload) ? payload : payload.items ?? [];
     if (!Array.isArray(raw)) return [];
     return raw.map((item) => ({
       id: `json-${item.id}`,

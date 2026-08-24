@@ -1649,21 +1649,8 @@ function AvailabilityBanner() {
   useEffect(() => {
     sync();
     const interval = window.setInterval(sync, 15000);
-    const events = new EventSource("/api/queue/stream");
-    const update = (event: MessageEvent) => {
-      try {
-        setQueue(JSON.parse(event.data));
-      } catch {
-        sync();
-      }
-    };
-    events.addEventListener("slot_update", update);
-    events.addEventListener("new_order", update);
-    events.addEventListener("queue_update", update);
-    events.onerror = () => events.close();
     return () => {
       window.clearInterval(interval);
-      events.close();
     };
   }, [sync]);
 
@@ -1671,14 +1658,9 @@ function AvailabilityBanner() {
   const maxSlots = queue?.maxSlots ?? 0;
   const availableSlots = queue?.availableSlots ?? 0;
   const percent = maxSlots > 0 ? Math.min(100, Math.round((activeSlots / maxSlots) * 100)) : 0;
-  const isFull = maxSlots > 0 && availableSlots === 0;
-  const isLimited = !isFull && availableSlots <= 2;
-  const label = isFull ? "Antrean penuh" : isLimited ? "Slot terbatas" : "Slot tersedia";
-  const tone = isFull
+  const tone = status === "offline"
     ? "border-[#9F2F2D]/25 bg-[#FDEBEC] text-[#9F2F2D]"
-    : isLimited
-    ? "border-[#956400]/25 bg-[#FBF3DB] text-[#956400]"
-    : "border-[#0038FF]/20 bg-[#0038FF]/5 text-[#0038FF]";
+    : "border-[#956400]/25 bg-[#FBF3DB] text-[#956400]";
 
   return (
     <section className="max-w-6xl mx-auto px-6 py-20 border-t border-[#1A1A1E]/10" aria-live="polite">
@@ -1694,9 +1676,11 @@ function AvailabilityBanner() {
               : queue?.note || "Kami sedang mengambil kapasitas terbaru."}
           </p>
         </div>
-        <span className={`shrink-0 font-mono text-[11px] tracking-widest uppercase px-3 py-1.5 rounded-full border ${tone}`}>
-          {status === "loading" ? "Memuat" : label}
-        </span>
+        {(status === "loading" || status === "offline") && (
+          <span className={`shrink-0 font-mono text-[11px] tracking-widest uppercase px-3 py-1.5 rounded-full border ${tone}`}>
+            {status === "loading" ? "Memuat" : "Offline"}
+          </span>
+        )}
       </div>
 
       <div className="rounded-2xl border border-[#1A1A1E]/10 bg-white overflow-hidden">
@@ -1750,7 +1734,7 @@ function AvailabilityBanner() {
 
 function ServicePackages({ onOrder, onConsult }: { onOrder: () => void; onConsult: () => void }) {
   const services = useServices();
-  return <section className="max-w-6xl mx-auto px-6 -mt-6 pb-20"><div className="max-w-xl mb-10"><p className="font-mono text-xs tracking-widest text-[#0038FF] mb-2">LAYANAN</p><h2 className="font-heading text-4xl tracking-tight">Pilih paket yang pas.</h2><p className="text-sm leading-relaxed text-[#1A1A1E]/55 mt-3">Harga awal transparan, ruang lingkup jelas, dan konsultasi bisa dipisahkan dari pesanan.</p></div><div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">{services.map((service, index) => { const Icon = service.icon; const consult = service.id === "konsultasi"; return <motion.article key={service.id} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .25 }} transition={{ delay: index * .06, duration: .45 }} className="border border-[#1A1A1E]/10 bg-white rounded-2xl p-6 flex flex-col min-h-56"><Icon className="w-5 h-5 text-[#0038FF]" /><h3 className="font-semibold mt-8">{service.title}</h3><p className="text-sm leading-relaxed text-[#1A1A1E]/55 mt-2">{service.desc}</p><p className="font-mono text-xs text-[#1A1A1E]/45 mt-5">{consult ? "Mulai dari diskusi singkat" : "Mulai dari Rp 25.000"}</p><button onClick={consult ? onConsult : onOrder} className="mt-auto pt-5 text-left text-sm font-semibold text-[#0038FF]">{consult ? "Atur konsultasi" : "Pesan layanan"}</button></motion.article>; })}</div></section>;
+  return <section className="mx-auto -mt-6 max-w-6xl px-6 pb-20"><div className="mb-10 max-w-xl"><p className="mb-2 font-mono text-xs tracking-widest text-[#0038FF]">LAYANAN</p><h2 className="font-heading text-4xl tracking-tight">Pilih paket yang pas.</h2><p className="mt-3 text-sm leading-relaxed text-[#1A1A1E]/55">Harga awal transparan, ruang lingkup jelas, dan konsultasi bisa dipisahkan dari pesanan.</p></div><div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">{services.map((service, index) => { const Icon = service.icon; const consult = service.id === "konsultasi"; return <motion.article key={service.id} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .25 }} transition={{ delay: index * .06, duration: .45 }} className={`${index === 0 ? "lg:col-span-2 lg:row-span-2 lg:min-h-[29rem] lg:p-8" : ""} flex min-h-56 flex-col rounded-2xl border border-[#1A1A1E]/10 bg-white p-6`}><Icon className="h-5 w-5 text-[#0038FF]" /><h3 className="mt-8 font-semibold">{service.title}</h3><p className="mt-2 text-sm leading-relaxed text-[#1A1A1E]/55">{service.desc}</p><p className="mt-5 font-mono text-xs text-[#1A1A1E]/45">{consult ? "Mulai dari diskusi singkat" : "Mulai dari Rp 25.000"}</p><button onClick={consult ? onConsult : onOrder} className="mt-auto pt-5 text-left text-sm font-semibold text-[#0038FF]">{consult ? "Atur konsultasi" : "Pesan layanan"}</button></motion.article>; })}</div></section>;
 }
 
 function ConsultationModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -2019,7 +2003,7 @@ export default function Page() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9F9FB] text-[#1A1A1E] font-sans pt-16">
+    <div className="ui-shell min-h-screen pt-16 font-sans text-[#1A1A1E]">
       <Navbar onOrder={handleOrder} onConsult={() => setConsultationOpen(true)} refs={{ home, work, terms }} />
       <div ref={home}>
         <Hero onOrder={handleOrder} onConsult={() => setConsultationOpen(true)} workRef={work} />
