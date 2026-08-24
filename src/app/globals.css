@@ -9,6 +9,14 @@
 }
 :root {
   color-scheme: light;
+  --page: #f4f6fa;
+  --surface: #ffffff;
+  --surface-muted: #eef2f7;
+  --ink: #17191f;
+  --ink-muted: #667085;
+  --line: rgba(23, 25, 31, 0.11);
+  --accent: #0038ff;
+  --accent-soft: rgba(0, 56, 255, 0.07);
 }
 
 html {
@@ -22,9 +30,62 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   overflow-x: hidden;
   max-width: 100%;
+  background: var(--page);
+  color: var(--ink);
   /* Sembunyikan scrollbar visual (tetap bisa discroll seperti biasa) */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE / Edge lama */
+}
+
+.ui-shell {
+  background:
+    radial-gradient(circle at 80% 0%, rgba(0, 56, 255, 0.06), transparent 28rem),
+    var(--page);
+}
+
+.ui-panel {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgba(23, 25, 31, 0.045);
+}
+
+.ui-input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  color: var(--ink);
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.ui-input:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+
+.ui-action {
+  border-radius: 10px;
+  transition: transform 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.ui-action:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.admin-shell > div > section:not(.admin-orders) {
+  border-color: var(--line) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 24px rgba(23, 25, 31, 0.03);
+}
+
+.admin-orders .divide-y > div {
+  transition: background-color 180ms ease;
+}
+
+.admin-orders .divide-y > div:hover {
+  background: rgba(238, 242, 247, 0.45);
 }
 
 .hero-art {

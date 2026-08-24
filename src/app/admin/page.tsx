@@ -374,7 +374,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F9F9FB] text-[#1A1A1E]">
+    <div className="admin-shell ui-shell min-h-screen text-[#17191f]">
       <div className="max-w-5xl mx-auto px-6 py-12">
         <div className="flex items-center justify-between mb-6">
           <Link
@@ -404,7 +404,10 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <h1 className="font-heading text-2xl font-semibold mb-6">Admin Dashboard</h1>
+        <div className="mb-7 flex items-end justify-between gap-4 border-b border-black/[.08] pb-6">
+          <div><p className="font-mono text-[10px] tracking-[.16em] text-[#0038FF]">WORKSPACE</p><h1 className="mt-1 font-heading text-3xl font-semibold tracking-[-.02em]">Admin Dashboard</h1></div>
+          <span className="hidden rounded-full bg-[#17191f] px-3 py-1.5 font-mono text-[10px] tracking-[.12em] text-white sm:inline-flex">LIVE</span>
+        </div>
 
         <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
           <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">PRICE SETTINGS</p>
@@ -598,12 +601,12 @@ export default function AdminPage() {
         </section>
 
         {/* Orders Table */}
-        <section className="border border-[#1A1A1E]/10 rounded-xl bg-white overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#1A1A1E]/10">
+        <section className="admin-orders ui-panel overflow-hidden">
+          <div className="px-6 py-5 border-b border-black/[.08]">
             <p className="font-mono text-[10px] tracking-widest text-[#0038FF]">
               ORDERS
             </p>
-            <h2 className="font-heading text-xl font-semibold mt-1">
+            <h2 className="font-heading text-2xl font-semibold mt-1 tracking-[-.02em]">
               Pesanan Masuk ({orders.length})
             </h2>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">

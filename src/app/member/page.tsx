@@ -50,19 +50,23 @@ export default function MemberPage() {
   if (status === "loading" || !session) return null;
 
   return (
-    <main className="min-h-screen bg-[#F9F9FB] px-6 py-12 text-[#1A1A1E]">
+    <main className="ui-shell min-h-screen px-4 py-8 text-[#17191f] sm:px-6 sm:py-12">
       <div className="mx-auto max-w-3xl">
-        <Link href="/" className="mb-10 inline-flex items-center gap-1.5 text-sm text-[#1A1A1E]/50 hover:text-[#1A1A1E]"><ArrowLeft className="h-4 w-4" /> kookiez.</Link>
-        <p className="font-mono text-xs tracking-widest text-[#0038FF]">MEMBER AREA</p>
-        <h1 className="mt-2 font-heading text-3xl font-semibold">Pesanan kamu</h1>
-        <p className="mt-2 text-sm text-[#1A1A1E]/55">{session.user.email}</p>
-        <section className="mt-8 overflow-hidden rounded-2xl border border-[#1A1A1E]/10 bg-white">
+        <div className="mb-8 flex items-center justify-between">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-[#667085] transition-colors hover:text-[#17191f]"><ArrowLeft className="h-4 w-4" /> kookiez.</Link>
+          <span className="rounded-full bg-[#0038FF]/[.07] px-3 py-1 font-mono text-[10px] tracking-[.16em] text-[#0038FF]">MEMBER</span>
+        </div>
+        <div className="mb-8 border-b border-black/[.08] pb-7">
+          <h1 className="font-heading text-3xl font-semibold tracking-[-.02em] sm:text-4xl">Pesanan kamu</h1>
+          <p className="mt-2 text-sm text-[#667085]">{session.user.email}</p>
+        </div>
+        <section className="ui-panel overflow-hidden">
           {loading ? <div className="p-12 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></div> : orders.length === 0 ? <p className="p-12 text-center text-sm text-[#1A1A1E]/50">Belum ada pesanan.</p> : orders.map((order) => (
-            <article key={order.code} className="border-b border-[#1A1A1E]/10 p-5 last:border-0">
-              <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-sm font-semibold text-[#0038FF]">{order.code}</p><h2 className="mt-1 font-medium">{order.service}</h2></div><span className="rounded-full bg-[#0038FF]/5 px-2.5 py-1 font-mono text-[11px] text-[#0038FF]">{order.status}</span></div>
-              <div className="mt-4 grid gap-2 text-sm text-[#1A1A1E]/60 sm:grid-cols-3"><span>{order.budgetLabel || "Custom"}</span><span>{order.deadline || "Fleksibel"}</span><span>{order.paymentRoute ?? "-"}</span></div>
-              <div className="mt-4 flex flex-wrap gap-4"><Link href={`/lacak?code=${encodeURIComponent(order.code)}`} className="text-sm font-medium text-[#0038FF]">Lacak pesanan</Link><a href={`/api/member/orders/${encodeURIComponent(order.code)}/invoice`} className="text-sm font-medium text-[#1A1A1E]/60 hover:text-[#0038FF]">Download invoice</a>{["progress", "review"].includes(order.status) && <button onClick={() => { setRevisionFor(revisionFor === order.code ? null : order.code); setRevisionStatus(""); }} className="text-sm font-medium text-[#1A1A1E]/60 hover:text-[#0038FF]">Ajukan revisi</button>}</div>
-              {revisionFor === order.code && <div className="mt-4 rounded-xl border border-[#1A1A1E]/10 bg-[#F9F9FB] p-3"><label className="block text-xs font-medium">Catatan revisi</label><textarea value={revisionMessage} onChange={(event) => setRevisionMessage(event.target.value)} rows={3} className="mt-2 w-full rounded-lg border border-[#1A1A1E]/15 bg-white p-2.5 text-sm" placeholder="Jelaskan bagian yang ingin direvisi" /><button onClick={() => submitRevision(order.code)} disabled={!revisionMessage.trim()} className="mt-2 rounded-lg bg-[#0038FF] px-3 py-2 text-xs font-medium text-white disabled:opacity-40">Kirim revisi</button></div>}
+            <article key={order.code} className="border-b border-black/[.08] p-5 last:border-0 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-xs font-semibold tracking-[.08em] text-[#0038FF]">{order.code}</p><h2 className="mt-1 font-heading text-lg font-semibold">{order.service}</h2></div><span className="rounded-full bg-[#0038FF]/[.07] px-2.5 py-1 font-mono text-[11px] text-[#0038FF]">{order.status}</span></div>
+              <div className="mt-5 grid gap-3 border-y border-black/[.07] py-3 text-sm text-[#667085] sm:grid-cols-3"><span><small className="block text-[10px] uppercase tracking-[.12em] text-[#98a2b3]">Paket</small>{order.budgetLabel || "Custom"}</span><span><small className="block text-[10px] uppercase tracking-[.12em] text-[#98a2b3]">Deadline</small>{order.deadline || "Fleksibel"}</span><span><small className="block text-[10px] uppercase tracking-[.12em] text-[#98a2b3]">Pembayaran</small>{order.paymentRoute ?? "-"}</span></div>
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2"><Link href={`/lacak?code=${encodeURIComponent(order.code)}`} className="ui-action text-sm font-medium text-[#0038FF] hover:underline">Lacak pesanan</Link><a href={`/api/member/orders/${encodeURIComponent(order.code)}/invoice`} className="ui-action text-sm font-medium text-[#667085] hover:text-[#0038FF]">Download invoice</a>{["progress", "review"].includes(order.status) && <button onClick={() => { setRevisionFor(revisionFor === order.code ? null : order.code); setRevisionStatus(""); }} className="ui-action text-sm font-medium text-[#667085] hover:text-[#0038FF]">Ajukan revisi</button>}</div>
+              {revisionFor === order.code && <div className="mt-4 rounded-xl border border-black/[.08] bg-[#eef2f7] p-4"><label className="block text-xs font-medium">Catatan revisi</label><textarea value={revisionMessage} onChange={(event) => setRevisionMessage(event.target.value)} rows={3} className="ui-input mt-2 w-full p-2.5 text-sm" placeholder="Jelaskan bagian yang ingin direvisi" /><button onClick={() => submitRevision(order.code)} disabled={!revisionMessage.trim()} className="ui-action mt-3 rounded-lg bg-[#0038FF] px-3.5 py-2 text-xs font-medium text-white disabled:opacity-40">Kirim revisi</button></div>}
             </article>
           ))}
         </section>
