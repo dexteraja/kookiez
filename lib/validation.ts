@@ -10,12 +10,35 @@ export const JoinQueueSchema = z.object({
   method: z.enum(["qris", "va", "card"]).optional().default("qris"),
   amount: z.number().finite().nonnegative().nullable().optional().default(null),
   isCustom: z.boolean().optional().default(false),
+  packageId: z.string().trim().max(40).optional().default(""),
+  customerName: z.string().trim().min(1).max(120, "Customer name is too long"),
+  promoCode: z.string().trim().max(40).optional().default(""),
   fileNames: z.array(z.string().trim().min(1).max(255)).max(10).optional().default([]),
+  fileUrls: z.array(z.string().url().max(2000)).max(10).optional().default([]),
   customerEmail: z.string().email().nullable().optional().default(null),
   idempotencyKey: z.string().trim().min(8).max(128).optional(),
 });
 
 export type JoinQueueInput = z.infer<typeof JoinQueueSchema>;
+
+const PromoCodeFieldsSchema = z.object({
+  code: z.string().trim().min(3).max(40).regex(/^[a-zA-Z0-9_-]+$/),
+  percent: z.number().int().min(1).max(100),
+  packageIds: z.array(z.string().trim().min(1).max(40)).min(1).max(10),
+  startsAt: z.coerce.date(),
+  expiresAt: z.coerce.date(),
+  active: z.boolean().default(true),
+});
+
+export const PromoCodeSchema = PromoCodeFieldsSchema.refine((value) => value.expiresAt > value.startsAt, {
+  message: "Tanggal berakhir harus setelah tanggal mulai.",
+  path: ["expiresAt"],
+});
+
+export const PromoCodeUpdateSchema = PromoCodeFieldsSchema.partial().refine((value) => {
+  if (!value.startsAt || !value.expiresAt) return true;
+  return value.expiresAt > value.startsAt;
+}, { message: "Tanggal berakhir harus setelah tanggal mulai.", path: ["expiresAt"] });
 
 export const UpdateOrderStatusSchema = z.object({
   status: z.enum(["pending", "progress", "review", "done"]),

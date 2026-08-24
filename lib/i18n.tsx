@@ -315,6 +315,7 @@ export interface BudgetTier {
   label: string;
   range: string;
   base: number | null;
+  promoPercent: number;
 }
 
 export interface WorkItem {
@@ -359,16 +360,16 @@ const servicesData: Record<Lang, ServiceItem[]> = {
 
 const budgetTiersData: Record<Lang, BudgetTier[]> = {
   id: [
-    { id: "hemat", label: "Hemat", range: "Rp 25rb – 75rb", base: 50000 },
-    { id: "standar", label: "Standar", range: "Rp 75rb – 200rb", base: 150000 },
-    { id: "lengkap", label: "Paket Lengkap", range: "Rp 200rb – 500rb", base: 350000 },
-    { id: "borongan", label: "Borongan / Custom", range: "500rb+ · custom", base: null },
+    { id: "hemat", label: "Hemat", range: "Rp 25rb – 75rb", base: 50000, promoPercent: 0 },
+    { id: "standar", label: "Standar", range: "Rp 75rb – 200rb", base: 150000, promoPercent: 0 },
+    { id: "lengkap", label: "Paket Lengkap", range: "Rp 200rb – 500rb", base: 350000, promoPercent: 0 },
+    { id: "borongan", label: "Borongan / Custom", range: "500rb+ · custom", base: null, promoPercent: 0 },
   ],
   en: [
-    { id: "hemat", label: "Basic", range: "IDR 25k – 75k", base: 50000 },
-    { id: "standar", label: "Standard", range: "IDR 75k – 200k", base: 150000 },
-    { id: "lengkap", label: "Full Package", range: "IDR 200k – 500k", base: 350000 },
-    { id: "borongan", label: "Bulk / Custom", range: "500k+ · custom", base: null },
+    { id: "hemat", label: "Basic", range: "IDR 25k – 75k", base: 50000, promoPercent: 0 },
+    { id: "standar", label: "Standard", range: "IDR 75k – 200k", base: 150000, promoPercent: 0 },
+    { id: "lengkap", label: "Full Package", range: "IDR 200k – 500k", base: 350000, promoPercent: 0 },
+    { id: "borongan", label: "Bulk / Custom", range: "500k+ · custom", base: null, promoPercent: 0 },
   ],
 };
 

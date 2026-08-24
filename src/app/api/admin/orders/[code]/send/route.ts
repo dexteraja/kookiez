@@ -1,0 +1,31 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth-helpers";
+import { connectToDatabase } from "@/lib/mongodb";
+import { readFile } from "@/lib/file-storage";
+import { sendMail } from "@/lib/mailer";
+
+export async function POST(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
+  const access = await requireAdmin();
+  if ("response" in access) return access.response;
+  const code = (await params).code.toUpperCase();
+  const body = await request.json().catch(() => ({}));
+  const { db } = await connectToDatabase();
+  const order = await db.collection("orders").findOne({ code });
+  if (!order || !order.customerEmail) return NextResponse.json({ error: "Order atau email customer tidak ditemukan." }, { status: 404 });
+  const deliverables = Array.isArray(order.deliverables) ? order.deliverables : [];
+  if (!deliverables.length) return NextResponse.json({ error: "Belum ada file project untuk dikirim." }, { status: 400 });
+  const attachments = [];
+  for (const deliverable of deliverables) {
+    const file = await readFile(String(deliverable.id));
+    if (file) attachments.push({ filename: String(file.filename), content: file.body });
+  }
+  if (!attachments.length) return NextResponse.json({ error: "File project tidak dapat dibaca." }, { status: 400 });
+  try {
+    await sendMail({ to: order.customerEmail, subject: `Project order ${code} dari Kookiez`, text: body.message || `Halo ${order.customerName || ""}, project untuk order ${code} sudah siap. File terlampir.`, html: `<p>Halo ${order.customerName || ""},</p><p>${body.message || `Project untuk order ${code} sudah siap.`}</p><p>File project terlampir pada email ini.</p>`, attachments });
+    await db.collection("orders").updateOne({ code }, { $set: { projectSentAt: new Date(), projectSendError: null } });
+    return NextResponse.json({ ok: true, sentTo: order.customerEmail });
+  } catch (error) {
+    await db.collection("orders").updateOne({ code }, { $set: { projectSendError: error instanceof Error ? error.message : "Email gagal dikirim", projectSendAttemptedAt: new Date() } });
+    return NextResponse.json({ error: "Email project gagal dikirim." }, { status: 502 });
+  }
+}

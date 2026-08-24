@@ -265,6 +265,7 @@ interface UploadedFile {
 interface BriefData {
   scope: string;
   refs: string;
+  customerName: string;
   files: UploadedFile[];
 }
 
@@ -276,6 +277,9 @@ interface BudgetData {
 interface OrderState {
   plan: PaymentPlan;
   method: PaymentMethod;
+  promoCode: string;
+  promoPercent: number;
+  promoMessage: string;
 }
 
 interface CheckoutOrder extends OrderState {
@@ -417,7 +421,7 @@ function LangToggle({ className = "" }: { className?: string }) {
 
 function StepService({ value, onChange }: { value: ServiceId | null; onChange: (id: ServiceId) => void }) {
   const { t } = useLang();
-  const services = useServices();
+  const services = useServices().filter((service) => service.id !== "konsultasi");
   return (
     <div>
       <h3 className="font-mono text-xs tracking-widest text-[#1A1A1E]/40 mb-1">{t("step1_kicker")}</h3>
@@ -502,6 +506,9 @@ function StepBrief({
     <div>
       <h3 className="font-mono text-xs tracking-widest text-[#1A1A1E]/40 mb-1">{t("step2_kicker")}</h3>
       <h2 className="font-heading text-2xl font-semibold text-[#1A1A1E] mb-6">{t("step2_title")}</h2>
+
+      <label className="block text-sm font-medium text-[#1A1A1E] mb-2">Nama customer</label>
+      <input type="text" value={data.customerName} onChange={(e) => onChange({ ...data, customerName: e.target.value })} placeholder="Nama pemesan" className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#0038FF]" />
 
       <label className="block text-sm font-medium text-[#1A1A1E] mb-2">{t("step2_detail_label")}</label>
       <textarea
@@ -628,12 +635,14 @@ function StepCheckout({
   onPay,
   paying,
   onlinePaymentEnabled,
+  onValidatePromo,
 }: {
   order: CheckoutOrder;
   onChange: (o: OrderState) => void;
   onPay: () => void;
   paying: boolean;
   onlinePaymentEnabled: boolean;
+  onValidatePromo: () => void;
 }) {
   const { t } = useLang();
   const services = useServices();
@@ -642,7 +651,9 @@ function StepCheckout({
   const tier = budgetTiers.find((tItem) => tItem.id === order.budget);
   const isCustom = tier?.base == null;
   const base = tier?.base ?? 0;
-  const amount = order.plan === "deposit" ? Math.round(base * 0.3) : base;
+  const packageDiscounted = Math.round(base * (1 - (tier?.promoPercent ?? 0) / 100));
+  const discountedBase = Math.round(packageDiscounted * (1 - order.promoPercent / 100));
+  const amount = order.plan === "deposit" ? Math.round(discountedBase * 0.3) : discountedBase;
 
   return (
     <div>
@@ -655,6 +666,7 @@ function StepCheckout({
             <span className="text-[#1A1A1E]/50">{t("step4_service")}</span>
             <span className="font-medium text-[#1A1A1E]">{service?.title}</span>
           </div>
+          {!isCustom && <div className="mt-4 border-t border-[#1A1A1E]/10 pt-4"><label className="block text-sm font-medium mb-2">Kode promo</label><div className="flex gap-2"><input value={order.promoCode} onChange={(e) => onChange({ ...order, promoCode: e.target.value.toUpperCase(), promoPercent: 0, promoMessage: "" })} placeholder="Masukkan kode promo" className="min-w-0 flex-1 rounded-xl border border-[#1A1A1E]/15 px-3 py-2.5 text-sm font-mono" /><button onClick={onValidatePromo} disabled={!order.promoCode} className="rounded-xl bg-[#1A1A1E] px-3 py-2.5 text-xs text-white disabled:opacity-40">Cek</button></div>{order.promoMessage && <p className="mt-2 text-xs text-[#1A1A1E]/60">{order.promoMessage}</p>}</div>}
           <div className="flex justify-between">
             <span className="text-[#1A1A1E]/50">{t("step4_budget")}</span>
             <span className="font-medium text-[#1A1A1E]">
@@ -815,9 +827,9 @@ function OrderModal({
   const services = useServices();
   const [step, setStep] = useState(1);
   const [service, setService] = useState<ServiceId | null>(null);
-  const [brief, setBrief] = useState<BriefData>({ scope: "", refs: "", files: [] });
+  const [brief, setBrief] = useState<BriefData>({ scope: "", refs: "", customerName: "", files: [] });
   const [budgetData, setBudgetData] = useState<BudgetData>({ budget: null, deadline: "" });
-  const [orderState, setOrderState] = useState<OrderState>({ plan: "deposit", method: "qris" });
+  const [orderState, setOrderState] = useState<OrderState>({ plan: "deposit", method: "qris", promoCode: "", promoPercent: 0, promoMessage: "" });
   const [paying, setPaying] = useState(false);
   const [onlinePaymentEnabled, setOnlinePaymentEnabled] = useState(false);
   const idempotencyKeyRef = useRef<string | null>(null);
@@ -826,7 +838,7 @@ function OrderModal({
     const draft = getOrderDraft();
     if (!draft) return;
     setService(draft.service as ServiceId | null);
-    setBrief({ ...draft.brief, files: [] });
+    setBrief({ ...draft.brief, customerName: "", files: [] });
     setBudgetData({ budget: draft.budget as BudgetId | null, deadline: draft.deadline });
   }, []);
 
@@ -843,7 +855,7 @@ function OrderModal({
 
   const canNext =
     (step === 1 && service) ||
-    (step === 2 && brief.scope.trim().length > 0) ||
+    (step === 2 && brief.scope.trim().length > 0 && brief.customerName.trim().length > 0) ||
     step === 3 && budgetData.budget ||
     step === 4;
 
@@ -862,6 +874,9 @@ function OrderModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           service: serviceObj?.title ?? service,
+          packageId: budgetData.budget,
+          customerName: brief.customerName,
+          promoCode: orderState.promoCode,
           budgetLabel: tier ? `${tier.label} · ${tier.range}` : "",
           deadline: budgetData.deadline,
           plan: orderState.plan,
@@ -871,6 +886,7 @@ function OrderModal({
           briefScope: brief.scope,
           briefRefs: brief.refs,
           fileNames: brief.files.map((f) => f.name),
+          fileUrls: brief.files.flatMap((f) => f.url ? [new URL(f.url, window.location.origin).toString()] : []),
           idempotencyKey: idempotencyKeyRef.current,
         }),
       });
@@ -888,6 +904,12 @@ function OrderModal({
     } finally {
       setPaying(false);
     }
+  };
+
+  const validatePromo = async () => {
+    const res = await fetch("/api/promo-codes/validate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: orderState.promoCode, packageId: budgetData.budget }) });
+    const result = await res.json();
+    setOrderState((current) => ({ ...current, promoPercent: result.valid ? result.percent : 0, promoMessage: result.valid ? `Kode aktif: diskon ${result.percent}%` : result.error || "Kode promo tidak berlaku." }));
   };
 
   return (
@@ -932,6 +954,7 @@ function OrderModal({
                   onPay={handlePay}
                   paying={paying}
                     onlinePaymentEnabled={onlinePaymentEnabled}
+                    onValidatePromo={validatePromo}
                 />
               )}
             </motion.div>

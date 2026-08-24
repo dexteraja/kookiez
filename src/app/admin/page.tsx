@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, LogOut, Plus, Minus, Volume2, VolumeX,
-  Clock, Loader2, CheckCircle2, Eye, X,
+  Clock, Loader2, CheckCircle2, Eye, X, Upload, Send,
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { DEFAULT_PRICING, type PricingOverride } from "@/lib/pricing";
 
 type OrderStatus = "pending" | "progress" | "review" | "done";
 
@@ -25,6 +26,12 @@ interface OrderData {
   briefScope: string;
   briefRefs: string;
   fileNames: string[];
+  customerName?: string | null;
+  promoCode?: string | null;
+  discountAmount?: number;
+  finalAmount?: number | null;
+  deliverables?: Array<{ id: string; name: string }>;
+  projectSentAt?: string | null;
   queuePosition: number | null;
   createdAt: string;
   customerEmail: string | null;
@@ -62,7 +69,7 @@ export default function AdminPage() {
   const [note, setNote] = useState("");
   const [workJson, setWorkJson] = useState("[]");
   const [workMessage, setWorkMessage] = useState("");
-  const [pricing, setPricing] = useState<Record<string, number | null>>({ hemat: 50000, standar: 150000, lengkap: 350000, borongan: null });
+  const [pricing, setPricing] = useState<PricingOverride>(DEFAULT_PRICING);
   const [pricingMessage, setPricingMessage] = useState("");
   const [onlinePaymentEnabled, setOnlinePaymentEnabled] = useState(false);
   const [whatsappCsNumber, setWhatsappCsNumber] = useState("");
@@ -72,6 +79,9 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [updatingSlot, setUpdatingSlot] = useState(false);
   const [slotMessage, setSlotMessage] = useState("");
+  const [promos, setPromos] = useState<Array<{ _id: string; code: string; percent: number; packageIds: string[]; startsAt: string; expiresAt: string; active: boolean }>>([]);
+  const [promoForm, setPromoForm] = useState({ code: "", percent: 10, packageIds: ["hemat"], startsAt: "", expiresAt: "" });
+  const [promoMessage, setPromoMessage] = useState("");
   const eventSourceRef = useRef<EventSource | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -79,6 +89,27 @@ export default function AdminPage() {
     setPricingMessage("Menyimpan...");
     const res = await fetch("/api/admin/pricing", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pricing }) });
     setPricingMessage(res.ok ? "Harga berhasil disimpan." : "Harga gagal disimpan.");
+  };
+
+  const loadPromos = async () => {
+    const res = await fetch("/api/admin/promo-codes");
+    if (res.ok) setPromos((await res.json()).promos ?? []);
+  };
+
+  const savePromo = async () => {
+    setPromoMessage("Menyimpan...");
+    const res = await fetch("/api/admin/promo-codes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...promoForm, startsAt: new Date(promoForm.startsAt).toISOString(), expiresAt: new Date(promoForm.expiresAt).toISOString(), active: true }) });
+    const data = await res.json();
+    if (!res.ok) return setPromoMessage(data.error || "Kode promo gagal disimpan.");
+    setPromoForm({ code: "", percent: 10, packageIds: ["hemat"], startsAt: "", expiresAt: "" });
+    setPromoMessage("Kode promo tersimpan.");
+    loadPromos();
+  };
+
+  const deletePromo = async (id: string) => {
+    if (!window.confirm("Hapus kode promo ini?")) return;
+    const res = await fetch(`/api/admin/promo-codes/${id}`, { method: "DELETE" });
+    if (res.ok) loadPromos();
   };
 
   const savePaymentSettings = async () => {
@@ -138,6 +169,8 @@ export default function AdminPage() {
         setWhatsappCsNumber(data.whatsappCsNumber ?? "");
         setWhatsappFallbackMessage(data.whatsappFallbackMessage ?? "");
       }).catch(() => {});
+      fetch("/api/admin/pricing").then((res) => res.ok ? res.json() : null).then((data) => data?.pricing && setPricing(data.pricing)).catch(() => {});
+      loadPromos().catch(() => {});
     }
   }, [session, fetchAdminData]);
 
@@ -291,6 +324,21 @@ export default function AdminPage() {
     }
   };
 
+  const uploadDeliverable = async (code: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`/api/admin/orders/${code}/deliverables`, { method: "POST", body: formData });
+    if (!res.ok) window.alert((await res.json()).error || "Upload gagal.");
+    else fetchAdminData();
+  };
+
+  const sendProject = async (code: string) => {
+    const res = await fetch(`/api/admin/orders/${code}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+    const data = await res.json();
+    window.alert(res.ok ? `Project terkirim ke ${data.sentTo}.` : data.error || "Email gagal dikirim.");
+    if (res.ok) fetchAdminData();
+  };
+
   if (authStatus === "loading" || (session?.user as { role?: string })?.role !== "admin") {
     return null;
   }
@@ -338,7 +386,8 @@ export default function AdminPage() {
                 {label}
                 <div className="flex items-center gap-2">
                   <span className="text-[#1A1A1E]/45">Rp</span>
-                  <input type="number" min="0" value={pricing[id] ?? ""} disabled={id === "borongan"} onChange={(e) => setPricing((current) => ({ ...current, [id]: e.target.value === "" ? null : Number(e.target.value) }))} className="w-full rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm focus:border-[#0038FF] focus:outline-none" />
+                  <input type="number" min="0" value={pricing[id as keyof PricingOverride].base ?? ""} disabled={id === "borongan"} onChange={(e) => setPricing((current) => ({ ...current, [id]: { ...current[id as keyof PricingOverride], base: e.target.value === "" ? null : Number(e.target.value) } }))} className="w-full rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm focus:border-[#0038FF] focus:outline-none" />
+                  <input type="number" min="0" max="100" value={pricing[id as keyof PricingOverride].promoPercent} onChange={(e) => setPricing((current) => ({ ...current, [id]: { ...current[id as keyof PricingOverride], promoPercent: Number(e.target.value) } }))} className="w-24 rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm focus:border-[#0038FF] focus:outline-none" aria-label={`Promo ${label} persen`} />
                 </div>
               </label>
             ))}
@@ -346,6 +395,24 @@ export default function AdminPage() {
           <div className="mt-5 flex items-center gap-3">
             <button onClick={savePricing} className="rounded-lg bg-[#0038FF] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0030DB]">Simpan harga</button>
             {pricingMessage && <span className="text-xs text-[#1A1A1E]/55" role="status">{pricingMessage}</span>}
+          </div>
+        </section>
+
+        <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
+          <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">PROMO CODES</p>
+          <h2 className="font-heading text-xl font-semibold mb-2">Kelola kode promo</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input value={promoForm.code} onChange={(e) => setPromoForm((current) => ({ ...current, code: e.target.value }))} placeholder="Kode promo" className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm" />
+            <input type="number" min="1" max="100" value={promoForm.percent} onChange={(e) => setPromoForm((current) => ({ ...current, percent: Number(e.target.value) }))} placeholder="Persen diskon" className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm" />
+            <label className="grid gap-1 text-sm font-medium">Mulai berlaku<input type="datetime-local" value={promoForm.startsAt} onChange={(e) => setPromoForm((current) => ({ ...current, startsAt: e.target.value }))} className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 text-sm" /></label>
+            <label className="grid gap-1 text-sm font-medium">Berakhir berlaku<input type="datetime-local" value={promoForm.expiresAt} onChange={(e) => setPromoForm((current) => ({ ...current, expiresAt: e.target.value }))} className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 text-sm" /></label>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3 text-sm">
+            {[["hemat", "Hemat"], ["standar", "Standar"], ["lengkap", "Paket Lengkap"]].map(([id, label]) => <label key={id} className="flex items-center gap-2"><input type="checkbox" checked={promoForm.packageIds.includes(id)} onChange={(e) => setPromoForm((current) => ({ ...current, packageIds: e.target.checked ? [...current.packageIds, id] : current.packageIds.filter((item) => item !== id) }))} />{label}</label>)}
+          </div>
+          <div className="mt-4 flex items-center gap-3"><button onClick={savePromo} disabled={!promoForm.code || !promoForm.startsAt || !promoForm.expiresAt || !promoForm.packageIds.length} className="rounded-lg bg-[#0038FF] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40">Tambah kode promo</button>{promoMessage && <span className="text-xs text-[#1A1A1E]/55" role="status">{promoMessage}</span>}</div>
+          <div className="mt-5 space-y-2">
+            {promos.map((promo) => <div key={promo._id} className="flex items-center justify-between gap-3 rounded-lg border border-[#1A1A1E]/10 px-3 py-2.5 text-sm"><span><strong className="font-mono">{promo.code}</strong> · {promo.percent}% · {promo.packageIds.join(", ")}<span className="block text-xs text-[#1A1A1E]/45">{new Date(promo.startsAt).toLocaleString("id-ID")} - {new Date(promo.expiresAt).toLocaleString("id-ID")}</span></span><button onClick={() => deletePromo(promo._id)} className="text-xs text-red-600 hover:underline">Hapus</button></div>)}
           </div>
         </section>
 
@@ -580,6 +647,16 @@ export default function AdminPage() {
                         {order.briefScope}
                       </p>
                     )}
+                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#1A1A1E]/8 pt-3">
+                      <span className="text-xs text-[#1A1A1E]/50">{order.customerName || order.customerEmail || "Customer"}</span>
+                      {order.promoCode && <span className="text-xs font-mono text-[#0038FF]">Promo {order.promoCode}</span>}
+                      <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[#1A1A1E]/15 px-2.5 py-1.5 text-xs hover:border-[#0038FF]">
+                        <Upload className="h-3.5 w-3.5" /> Upload project
+                        <input type="file" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadDeliverable(order.code, file); event.currentTarget.value = ""; }} />
+                      </label>
+                      {!!order.deliverables?.length && <button onClick={() => sendProject(order.code)} className="inline-flex items-center gap-1.5 rounded-md bg-[#0038FF] px-2.5 py-1.5 text-xs text-white hover:bg-[#0030DB]"><Send className="h-3.5 w-3.5" /> Kirim project</button>}
+                      {order.projectSentAt && <span className="text-xs text-green-700">Terkirim</span>}
+                    </div>
                   </div>
                 );
               })}

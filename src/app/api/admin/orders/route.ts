@@ -41,6 +41,12 @@ export async function GET() {
         plan: o.plan,
         method: o.method,
         amount: o.amount,
+        baseAmount: o.baseAmount ?? null,
+        discountAmount: o.discountAmount ?? 0,
+        finalAmount: o.finalAmount ?? o.amount,
+        packagePromoPercent: o.packagePromoPercent ?? 0,
+        promoCode: o.promoCode ?? null,
+        promoCodePercent: o.promoCodePercent ?? 0,
         isCustom: o.isCustom,
         briefScope: o.briefScope,
         briefRefs: o.briefRefs,
@@ -48,6 +54,10 @@ export async function GET() {
         queuePosition: o.queuePosition,
         createdAt: o.createdAt,
         customerEmail: o.customerEmail,
+        customerName: o.customerName ?? null,
+        fileUrls: o.fileUrls ?? [],
+        deliverables: o.deliverables ?? [],
+        projectSentAt: o.projectSentAt ?? null,
       })),
     });
   } catch (error) {

@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { requireUser } from "@/lib/auth-helpers";
+import { storeFile } from "@/lib/file-storage";
 
-// PENTING: implementasi ini menyimpan file ke folder public/uploads di server —
-// cocok untuk development lokal, TAPI tidak cocok untuk hosting serverless
-// (Vercel, dll) karena filesystem-nya read-only/sementara di produksi.
-// Untuk produksi asli, ganti isi handler ini dengan upload ke storage
-// eksternal seperti Cloudinary, S3, atau Supabase Storage, lalu kembalikan
-// URL publiknya dengan bentuk response yang sama: { url, name }.
+const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf", "application/zip"]);
 
 export async function POST(req: NextRequest) {
+  const access = await requireUser();
+  if ("response" in access) return access.response;
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -18,17 +15,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
-
-    const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
-    const filePath = path.join(uploadDir, safeName);
-    await writeFile(filePath, buffer);
-
-    return NextResponse.json({ url: `/uploads/${safeName}`, name: file.name });
+    if (!allowedTypes.has(file.type)) return NextResponse.json({ error: "Tipe file tidak didukung." }, { status: 400 });
+    const stored = await storeFile(file, { kind: "brief", userId: access.user.id! });
+    return NextResponse.json({ url: `/api/files/${stored.id}`, id: stored.id, name: stored.name });
   } catch (err) {
     console.error("Upload error:", err);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });

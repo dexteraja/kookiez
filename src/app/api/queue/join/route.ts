@@ -5,6 +5,8 @@ import { rateLimit } from "@/lib/rate-limit";
 import { sseBroadcaster } from "@/lib/sse/broadcaster";
 import { requireUser } from "@/lib/auth-helpers";
 import { getSiteSettings } from "@/lib/site-settings-repository";
+import { DEFAULT_PRICING, mergePricing, calculateDiscountedAmount } from "@/lib/pricing";
+import { findPromoCode } from "@/lib/promo-codes";
 
 function generateOrderCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -55,6 +57,20 @@ export async function POST(req: NextRequest) {
     const { db } = await connectToDatabase();
     const data = parsed.data;
     const siteSettings = await getSiteSettings();
+    const pricingSetting = await db.collection("site_settings").findOne({ key: "pricing" });
+    const pricing = mergePricing(pricingSetting?.value ?? DEFAULT_PRICING);
+    const packagePricing = pricing[data.packageId as keyof typeof pricing];
+    const packagePromoPercent = packagePricing?.promoPercent ?? 0;
+    let promoCodePercent = 0;
+    const normalizedPromoCode = data.promoCode.toUpperCase();
+    if (normalizedPromoCode) {
+      if (!packagePricing || packagePricing.base === null) return NextResponse.json({ error: "Kode promo tidak berlaku untuk paket ini." }, { status: 400 });
+      const promo = await findPromoCode(normalizedPromoCode, data.packageId);
+      if (!promo) return NextResponse.json({ error: "Kode promo tidak berlaku atau sudah kedaluwarsa." }, { status: 400 });
+      promoCodePercent = promo.percent;
+    }
+    const priceSnapshot = packagePricing?.base == null ? null : calculateDiscountedAmount(packagePricing.base, packagePromoPercent, promoCodePercent, data.plan);
+    const finalAmount = priceSnapshot?.finalAmount ?? null;
 
     const settingsCollection = db.collection("queue_settings");
     const ordersCollection = db.collection("orders");
@@ -96,13 +112,14 @@ export async function POST(req: NextRequest) {
       siteSettings.whatsappFallbackMessage,
       "",
       `Kode order: ${orderCode}`,
-      `Nama: ${access.user.name ?? "-"}`,
+      `Nama: ${data.customerName}`,
       `Email: ${customerEmail}`,
       "Nomor member: -",
       `Layanan: ${data.service}`,
       `Paket: ${data.budgetLabel || "-"}`,
       `Deadline: ${data.deadline || "Fleksibel"}`,
-      `Nominal: ${data.amount == null ? "Custom" : data.amount}`,
+      `Nominal: ${finalAmount == null ? "Custom" : finalAmount}`,
+      `Promo: ${normalizedPromoCode || "-"}`,
       `Rencana pembayaran: ${data.plan}`,
       `Metode: ${data.method}`,
       `Brief: ${data.briefScope}`,
@@ -119,11 +136,21 @@ export async function POST(req: NextRequest) {
       deadline: data.deadline,
       plan: data.plan,
       method: data.method,
-      amount: data.amount,
+      amount: finalAmount,
+      baseAmount: priceSnapshot?.subtotal ?? null,
+      subtotal: priceSnapshot?.subtotal ?? null,
+      discountAmount: priceSnapshot?.discountAmount ?? 0,
+      finalAmount,
+      packagePromoPercent,
+      promoCode: normalizedPromoCode || null,
+      promoCodePercent,
       isCustom: data.isCustom,
+      packageId: data.packageId,
+      customerName: data.customerName,
       briefScope: data.briefScope,
       briefRefs: data.briefRefs,
       fileNames: data.fileNames,
+      fileUrls: data.fileUrls,
       status: "pending",
       paymentRoute: siteSettings.onlinePaymentEnabled ? "online_pending" : "whatsapp_fallback",
       paymentStatus: siteSettings.onlinePaymentEnabled ? "pending" : "manual_contact_required",

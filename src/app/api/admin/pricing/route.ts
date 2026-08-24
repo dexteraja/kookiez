@@ -4,7 +4,12 @@ import { auth } from "@/auth";
 import { connectToDatabase } from "@/lib/mongodb";
 import { DEFAULT_PRICING, mergePricing, PRICING_META } from "@/lib/pricing";
 
-const schema = z.object({ pricing: z.record(z.string(), z.number().int().min(0).max(100000000)) });
+const schema = z.object({
+  pricing: z.record(z.string(), z.object({
+    base: z.number().int().min(0).max(100000000).nullable(),
+    promoPercent: z.number().int().min(0).max(100).default(0),
+  })),
+});
 
 async function isAdmin() {
   const session = await auth();
@@ -24,7 +29,7 @@ export async function PUT(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Nilai harga tidak valid." }, { status: 400 });
   const pricing = mergePricing(parsed.data.pricing);
   for (const id of Object.keys(PRICING_META) as Array<keyof typeof PRICING_META>) {
-    if (pricing[id] !== null && pricing[id] < PRICING_META[id].min) return NextResponse.json({ error: `Harga ${id} minimal Rp ${PRICING_META[id].min.toLocaleString("id-ID")}.` }, { status: 400 });
+    if (pricing[id].base !== null && pricing[id].base < PRICING_META[id].min) return NextResponse.json({ error: `Harga ${id} minimal Rp ${PRICING_META[id].min.toLocaleString("id-ID")}.` }, { status: 400 });
   }
   const { db } = await connectToDatabase();
   await db.collection("site_settings").updateOne({ key: "pricing" }, { $set: { key: "pricing", value: pricing, updatedAt: new Date() } }, { upsert: true });

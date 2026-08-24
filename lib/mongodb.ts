@@ -53,4 +53,6 @@ export async function ensureIndexes() {
   await db.collection("orders").createIndex({ status: 1 });
   await db.collection("orders").createIndex({ queuePosition: 1 });
   await db.collection("orders").createIndex({ createdAt: -1 });
+  await db.collection("promo_codes").createIndex({ code: 1 }, { unique: true });
+  await db.collection("promo_codes").createIndex({ active: 1, startsAt: 1, expiresAt: 1 });
 }
