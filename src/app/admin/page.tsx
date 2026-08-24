@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, LogOut, Plus, Minus, Volume2, VolumeX,
-  Clock, Loader2, CheckCircle2, Eye, X, Upload, Send,
+  Clock, Loader2, CheckCircle2, Eye, X, Upload, Send, AlertTriangle,
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { DEFAULT_PRICING, type PricingOverride } from "@/lib/pricing";
@@ -82,6 +82,9 @@ export default function AdminPage() {
   const [promos, setPromos] = useState<Array<{ _id: string; code: string; percent: number; packageIds: string[]; startsAt: string; expiresAt: string; active: boolean }>>([]);
   const [promoForm, setPromoForm] = useState({ code: "", percent: 10, packageIds: ["hemat"], startsAt: "", expiresAt: "" });
   const [promoMessage, setPromoMessage] = useState("");
+  const [resetConfirmation, setResetConfirmation] = useState("");
+  const [resetMessage, setResetMessage] = useState("");
+  const [resetting, setResetting] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -339,6 +342,25 @@ export default function AdminPage() {
     if (res.ok) fetchAdminData();
   };
 
+  const resetDatabase = async () => {
+    if (resetConfirmation !== "RESET") return;
+    setResetting(true);
+    setResetMessage("");
+    try {
+      const res = await fetch("/api/admin/reset", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmation: resetConfirmation }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Database gagal direset.");
+      setResetConfirmation("");
+      setResetMessage("Data aplikasi berhasil dihapus.");
+      fetchAdminData();
+      loadPromos();
+    } catch (error) {
+      setResetMessage(error instanceof Error ? error.message : "Database gagal direset.");
+    } finally {
+      setResetting(false);
+    }
+  };
+
   if (authStatus === "loading" || (session?.user as { role?: string })?.role !== "admin") {
     return null;
   }
@@ -552,6 +574,21 @@ export default function AdminPage() {
           {workMessage && <p className="mt-2 text-sm text-[#0038FF]">{workMessage}</p>}
         </section>
 
+        <section className="mb-8 border border-red-200 rounded-xl p-5 bg-red-50/60">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+            <div className="min-w-0 flex-1">
+              <h2 className="font-heading text-lg font-semibold text-red-900">Reset data aplikasi</h2>
+              <p className="mt-1 text-sm text-red-800/75">Menghapus order, promo, pengaturan, portfolio, dan semua file GridFS. Akun admin tetap dipertahankan.</p>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <input value={resetConfirmation} onChange={(event) => setResetConfirmation(event.target.value.toUpperCase())} placeholder="Ketik RESET" aria-label="Konfirmasi reset database" className="min-w-0 flex-1 rounded-lg border border-red-200 bg-white px-3 py-2.5 font-mono text-sm focus:border-red-500 focus:outline-none" />
+                <button onClick={resetDatabase} disabled={resetting || resetConfirmation !== "RESET"} className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"><AlertTriangle className="h-4 w-4" />{resetting ? "Menghapus..." : "Hapus semua data"}</button>
+              </div>
+              {resetMessage && <p className="mt-2 text-xs text-red-800" role="status">{resetMessage}</p>}
+            </div>
+          </div>
+        </section>
+
         {/* Orders Table */}
         <section className="border border-[#1A1A1E]/10 rounded-xl bg-white overflow-hidden">
           <div className="px-6 py-4 border-b border-[#1A1A1E]/10">
@@ -615,7 +652,7 @@ export default function AdminPage() {
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs text-[#1A1A1E]/70">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-[#1A1A1E]/70">
                       <div>
                         <div className="text-[#1A1A1E]/40">Layanan</div>
                         <div className="font-medium">{order.service || "—"}</div>
@@ -629,34 +666,33 @@ export default function AdminPage() {
                         <div className="font-medium">{order.deadline || "—"}</div>
                       </div>
                       <div>
-                        <div className="text-[#1A1A1E]/40">Pembayaran</div>
-                        <div className="font-medium">
-                          {order.plan} · {order.method}
-                        </div>
+                        <div className="text-[#1A1A1E]/40">Total</div>
+                        <div className="font-medium">{order.finalAmount == null ? "Custom" : new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(order.finalAmount)}</div>
                       </div>
                       <div>
-                        <div className="text-[#1A1A1E]/40">Waktu</div>
-                        <div className="font-medium">
-                          {new Date(order.createdAt).toLocaleString("id-ID")}
-                        </div>
+                        <div className="text-[#1A1A1E]/40">Bayar</div>
+                        <div className="font-medium">{order.plan} · {order.method}</div>
                       </div>
                     </div>
 
-                    {order.briefScope && (
-                      <p className="text-xs text-[#1A1A1E]/55 mt-3 pt-3 border-t border-[#1A1A1E]/8 line-clamp-2">
-                        {order.briefScope}
-                      </p>
-                    )}
-                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#1A1A1E]/8 pt-3">
-                      <span className="text-xs text-[#1A1A1E]/50">{order.customerName || order.customerEmail || "Customer"}</span>
-                      {order.promoCode && <span className="text-xs font-mono text-[#0038FF]">Promo {order.promoCode}</span>}
-                      <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[#1A1A1E]/15 px-2.5 py-1.5 text-xs hover:border-[#0038FF]">
+                    <details className="mt-3 border-t border-[#1A1A1E]/8 pt-3">
+                      <summary className="cursor-pointer text-xs font-medium text-[#1A1A1E]/55">Lihat detail order</summary>
+                      <div className="mt-3 space-y-2 text-xs text-[#1A1A1E]/65">
+                        <p><span className="text-[#1A1A1E]/40">Customer:</span> {order.customerName || "-"} {order.customerEmail ? `(${order.customerEmail})` : ""}</p>
+                        {order.briefScope && <p><span className="text-[#1A1A1E]/40">Brief:</span> {order.briefScope}</p>}
+                        <p><span className="text-[#1A1A1E]/40">Waktu:</span> {new Date(order.createdAt).toLocaleString("id-ID")}</p>
+                        {order.promoCode && <p><span className="text-[#1A1A1E]/40">Promo:</span> <span className="font-mono text-[#0038FF]">{order.promoCode}</span></p>}
+                        {order.deliverables?.length ? <p><span className="text-[#1A1A1E]/40">File project:</span> {order.deliverables.map((file) => file.name).join(", ")}</p> : null}
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[#1A1A1E]/15 px-2.5 py-1.5 text-xs hover:border-[#0038FF]">
                         <Upload className="h-3.5 w-3.5" /> Upload project
                         <input type="file" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadDeliverable(order.code, file); event.currentTarget.value = ""; }} />
                       </label>
                       {!!order.deliverables?.length && <button onClick={() => sendProject(order.code)} className="inline-flex items-center gap-1.5 rounded-md bg-[#0038FF] px-2.5 py-1.5 text-xs text-white hover:bg-[#0030DB]"><Send className="h-3.5 w-3.5" /> Kirim project</button>}
                       {order.projectSentAt && <span className="text-xs text-green-700">Terkirim</span>}
-                    </div>
+                      </div>
+                    </details>
                   </div>
                 );
               })}

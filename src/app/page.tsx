@@ -245,13 +245,19 @@ function updateResponsive3DAnimation(
   const t = time * 0.001;
 
   cube.rotation.x = t * 0.35;
-  cube.rotation.y = t * 0.5;
+  cube.rotation.y = t * 0.5 + Math.sin(t * 0.55) * 0.08;
+  cube.rotation.z = Math.sin(t * 0.4) * 0.1;
   cube.position.y = layout.cube.y + Math.sin(t * 0.9) * 0.15;
+  cube.position.x = layout.cube.x + Math.cos(t * 0.7) * 0.08;
 
   ring.rotation.z = t * 0.3;
+  ring.rotation.y = Math.sin(t * 0.6) * 0.22;
+  ring.rotation.x = Math.PI / 2.2 + Math.cos(t * 0.45) * 0.12;
   ring.position.y = layout.ring.y + Math.sin(t * 0.8 + 1.4) * 0.15;
+  ring.position.x = layout.ring.x + Math.sin(t * 0.65) * 0.1;
 
   pencil.rotation.y = t * 0.35;
+  pencil.rotation.x = -0.15 + Math.sin(t * 0.5) * 0.12;
   pencil.position.y = layout.pencil.y + Math.sin(t * 1.1 + 0.6) * 0.15;
 }
 
@@ -1343,10 +1349,12 @@ function Real3DScene() {
       void main() {
         vec3 n = normalize(vNormal);
         vec3 v = normalize(-vViewPos);
-        vec3 l = normalize(vec3(0.5, 0.8, 0.6));
-        vec3 h = normalize(l + v);
+        vec3 keyLight = normalize(vec3(0.5, 0.8, 0.6));
+        vec3 fillLight = normalize(vec3(-0.7, 0.15, 0.45));
+        vec3 h = normalize(keyLight + v);
 
-        float diff = max(dot(n, l), 0.0);
+        float diff = max(dot(n, keyLight), 0.0);
+        float fill = max(dot(n, fillLight), 0.0) * 0.18;
         // Kurva shading lebih tajam (0.85 base, bukan 0.7/0.3) daripada
         // sebelumnya: gradien sebelumnya terlalu landai (rentang 0.3-1.0),
         // dan gradien landai adalah yang paling mudah terlihat "berundak"
@@ -1362,7 +1370,7 @@ function Real3DScene() {
         float spec = pow(max(dot(n, h), 0.0), 64.0) * 0.5;
         float rim = pow(1.0 - max(dot(n, v), 0.0), 2.5) * 0.3;
 
-        vec3 color = mix(uColorDark, uColor, wrap) * ao + spec + rim;
+        vec3 color = mix(uColorDark, uColor, wrap) * (ao + fill) + spec + rim;
         color += dither(gl_FragCoord.xy) * 0.006;
         gl_FragColor = vec4(color, 1.0);
       }
@@ -1526,6 +1534,7 @@ function Real3DScene() {
 
       const t = time * 0.001;
       scene.rotation.y = Math.sin(t * 0.15) * 0.05;
+      scene.rotation.x = Math.cos(t * 0.12) * 0.025;
 
       renderer.render({ scene, camera });
       frame = requestAnimationFrame(render);
