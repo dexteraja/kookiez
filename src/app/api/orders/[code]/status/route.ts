@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { UpdateOrderStatusSchema } from "@/lib/validation";
 import { sseBroadcaster } from "@/lib/sse/broadcaster";
 import { auth } from "@/auth";
+import { sendMail } from "@/lib/mailer";
 
 export async function PATCH(
   req: NextRequest,
@@ -27,6 +28,7 @@ export async function PATCH(
 
     const { db } = await connectToDatabase();
     const { status } = parsed.data;
+    const previous = await db.collection("orders").findOne({ code: code.toUpperCase() }, { projection: { status: 1 } });
 
     const result = await db
       .collection("orders")
@@ -38,6 +40,15 @@ export async function PATCH(
 
     if (!result) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (result.customerEmail && previous?.status !== status) {
+      sendMail({
+        to: result.customerEmail,
+        subject: `Update order ${result.code} - Kookiez`,
+        text: `Status order ${result.code} sekarang: ${status}.`,
+        html: `<p>Status order <strong>${result.code}</strong> sekarang: <strong>${status}</strong>.</p>`,
+      }).catch((error) => console.error("Order status email failed:", error));
     }
 
     const activeOrders = await db

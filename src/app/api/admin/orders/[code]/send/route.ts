@@ -3,12 +3,15 @@ import { requireAdmin } from "@/lib/auth-helpers";
 import { connectToDatabase } from "@/lib/mongodb";
 import { readFile } from "@/lib/file-storage";
 import { sendMail } from "@/lib/mailer";
+import { DeliverableMessageSchema } from "@/lib/validation";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const access = await requireAdmin();
   if ("response" in access) return access.response;
   const code = (await params).code.toUpperCase();
-  const body = await request.json().catch(() => ({}));
+  const parsedBody = DeliverableMessageSchema.safeParse(await request.json().catch(() => ({})));
+  if (!parsedBody.success) return NextResponse.json({ error: "Pesan email tidak valid." }, { status: 400 });
+  const message = parsedBody.data.message;
   const { db } = await connectToDatabase();
   const order = await db.collection("orders").findOne({ code });
   if (!order || !order.customerEmail) return NextResponse.json({ error: "Order atau email customer tidak ditemukan." }, { status: 404 });
@@ -21,7 +24,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
   if (!attachments.length) return NextResponse.json({ error: "File project tidak dapat dibaca." }, { status: 400 });
   try {
-    await sendMail({ to: order.customerEmail, subject: `Project order ${code} dari Kookiez`, text: body.message || `Halo ${order.customerName || ""}, project untuk order ${code} sudah siap. File terlampir.`, html: `<p>Halo ${order.customerName || ""},</p><p>${body.message || `Project untuk order ${code} sudah siap.`}</p><p>File project terlampir pada email ini.</p>`, attachments });
+    const plainMessage = message || `Halo ${order.customerName || ""}, project untuk order ${code} sudah siap. File terlampir.`;
+    const safeMessage = plainMessage.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character);
+    await sendMail({ to: order.customerEmail, subject: `Project order ${code} dari Kookiez`, text: plainMessage, html: `<p>${safeMessage}</p><p>File project terlampir pada email ini.</p>`, attachments });
     await db.collection("orders").updateOne({ code }, { $set: { projectSentAt: new Date(), projectSendError: null } });
     return NextResponse.json({ ok: true, sentTo: order.customerEmail });
   } catch (error) {

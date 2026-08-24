@@ -85,6 +85,8 @@ export default function AdminPage() {
   const [resetConfirmation, setResetConfirmation] = useState("");
   const [resetMessage, setResetMessage] = useState("");
   const [resetting, setResetting] = useState(false);
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | OrderStatus>("all");
   const eventSourceRef = useRef<EventSource | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -361,6 +363,12 @@ export default function AdminPage() {
     }
   };
 
+  const visibleOrders = orders.filter((order) => {
+    const search = orderSearch.trim().toLowerCase();
+    const matchesSearch = !search || [order.code, order.service, order.customerName, order.customerEmail].some((value) => value?.toLowerCase().includes(search));
+    return matchesSearch && (orderStatusFilter === "all" || order.status === orderStatusFilter);
+  });
+
   if (authStatus === "loading" || (session?.user as { role?: string })?.role !== "admin") {
     return null;
   }
@@ -598,6 +606,10 @@ export default function AdminPage() {
             <h2 className="font-heading text-xl font-semibold mt-1">
               Pesanan Masuk ({orders.length})
             </h2>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <input value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder="Cari kode, layanan, atau customer" className="min-w-0 flex-1 rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2 text-sm" />
+              <select value={orderStatusFilter} onChange={(event) => setOrderStatusFilter(event.target.value as "all" | OrderStatus)} className="rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2 text-sm"><option value="all">Semua status</option><option value="pending">Pending</option><option value="progress">Progress</option><option value="review">Review</option><option value="done">Selesai</option></select>
+            </div>
           </div>
 
           {loading ? (
@@ -611,7 +623,7 @@ export default function AdminPage() {
             </p>
           ) : (
             <div className="divide-y divide-[#1A1A1E]/10">
-              {orders.map((order) => {
+              {visibleOrders.map((order) => {
                 const meta = statusMeta(order.status, t);
                 const Icon = meta.icon;
                 return (

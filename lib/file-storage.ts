@@ -30,5 +30,5 @@ export async function readFile(fileId: string) {
   const bucket = new GridFSBucket(db, { bucketName: "files" });
   const chunks: Buffer[] = [];
   for await (const chunk of bucket.openDownloadStream(id)) chunks.push(Buffer.from(chunk));
-  return { ...file, filename: String(file.filename ?? "download"), body: Buffer.concat(chunks), contentType: String(file.metadata?.contentType ?? "application/octet-stream") };
+  return { ...file, filename: String(file.filename ?? "download"), metadata: file.metadata as Record<string, string> | undefined, body: Buffer.concat(chunks), contentType: String(file.metadata?.contentType ?? "application/octet-stream") };
 }

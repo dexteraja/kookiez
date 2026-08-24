@@ -44,6 +44,12 @@ export const UpdateOrderStatusSchema = z.object({
   status: z.enum(["pending", "progress", "review", "done"]),
 });
 
+export const RevisionRequestSchema = z.object({
+  message: z.string().trim().min(1).max(3000),
+});
+
+export const DeliverableMessageSchema = z.object({ message: z.string().trim().max(2000).optional().default("") });
+
 export const UpdateQueueSettingsSchema = z.object({
   maxSlots: z.number().int().min(1).max(999),
   note: z.string().optional().default(""),

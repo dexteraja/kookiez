@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
+import { requireUser } from "@/lib/auth-helpers";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   try {
+    const access = await requireUser();
+    if ("response" in access) return access.response;
     const { code } = await params;
     const { db } = await connectToDatabase();
 
@@ -13,6 +16,9 @@ export async function GET(
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+    if (order.userId !== access.user.id && access.user.role !== "admin") {
+      return NextResponse.json({ error: "Anda tidak memiliki akses ke order ini." }, { status: 403 });
     }
 
     const activeOrders = await db
@@ -40,10 +46,13 @@ export async function GET(
       plan: order.plan,
       method: order.method,
       amount: order.amount,
+      customerName: order.customerName ?? null,
       isCustom: order.isCustom,
       briefScope: order.briefScope,
       briefRefs: order.briefRefs,
       fileNames: order.fileNames,
+      fileUrls: order.fileUrls ?? [],
+      deliverables: order.deliverables ?? [],
       createdAt: order.createdAt,
       queuePosition: position,
       maxSlots,

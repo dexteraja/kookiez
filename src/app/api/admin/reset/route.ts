@@ -26,12 +26,19 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const { db } = await connectToDatabase();
+    const backupId = new Date().toISOString().replace(/[:.]/g, "-");
+    const backupCollection = db.collection("database_backups");
+    for (const collectionName of applicationCollections) {
+      const documents = await db.collection(collectionName).find({}).toArray();
+      for (const document of documents) await backupCollection.insertOne({ backupId, collectionName, document, createdAt: new Date() });
+    }
+    await backupCollection.createIndex({ backupId: 1, createdAt: -1 });
     const result: Record<string, number> = {};
     for (const collectionName of applicationCollections) {
       const deleted = await db.collection(collectionName).deleteMany({});
       result[collectionName] = deleted.deletedCount;
     }
-    return NextResponse.json({ ok: true, deleted: result });
+    return NextResponse.json({ ok: true, backupId, deleted: result });
   } catch (error) {
     console.error("DELETE /api/admin/reset error:", error);
     return NextResponse.json({ error: "Database gagal direset." }, { status: 500 });

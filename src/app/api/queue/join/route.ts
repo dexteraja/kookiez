@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth-helpers";
 import { getSiteSettings } from "@/lib/site-settings-repository";
 import { DEFAULT_PRICING, mergePricing, calculateDiscountedAmount } from "@/lib/pricing";
 import { findPromoCode } from "@/lib/promo-codes";
+import { sendMail } from "@/lib/mailer";
 
 function generateOrderCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
     const access = await requireUser();
     if ("response" in access) return access.response;
     const customerEmail = access.user.email;
+    if (!customerEmail) return NextResponse.json({ error: "Email akun tidak tersedia." }, { status: 401 });
     const userId = access.user.id;
 
     const body = await req.json();
@@ -175,6 +177,13 @@ export async function POST(req: NextRequest) {
       { key: "global" },
       { $set: { activeSlots: updatedActiveCount, updatedAt: new Date() } }
     );
+
+    sendMail({
+      to: customerEmail,
+      subject: `Order ${orderCode} diterima - Kookiez`,
+      text: `Halo ${data.customerName}, order ${orderCode} sudah diterima. Total: ${finalAmount == null ? "Custom" : finalAmount}.`,
+      html: `<p>Halo ${data.customerName},</p><p>Order <strong>${orderCode}</strong> sudah diterima.</p><p>Total: <strong>${finalAmount == null ? "Custom" : finalAmount}</strong></p>`,
+    }).catch((error) => console.error("Order confirmation email failed:", error));
 
     sseBroadcaster.broadcast({
       type: "new_order",
