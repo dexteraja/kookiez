@@ -1734,7 +1734,7 @@ function AvailabilityBanner() {
 
 function ServicePackages({ onOrder, onConsult }: { onOrder: () => void; onConsult: () => void }) {
   const services = useServices();
-  return <section className="mx-auto -mt-6 max-w-6xl px-6 pb-20"><div className="mb-10 max-w-xl"><p className="mb-2 font-mono text-xs tracking-widest text-[#0038FF]">LAYANAN</p><h2 className="font-heading text-4xl tracking-tight">Pilih paket yang pas.</h2><p className="mt-3 text-sm leading-relaxed text-[#1A1A1E]/55">Harga awal transparan, ruang lingkup jelas, dan konsultasi bisa dipisahkan dari pesanan.</p></div><div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">{services.map((service, index) => { const Icon = service.icon; const consult = service.id === "konsultasi"; return <motion.article key={service.id} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .25 }} transition={{ delay: index * .06, duration: .45 }} className={`${index === 0 ? "lg:col-span-2 lg:row-span-2 lg:min-h-[29rem] lg:p-8" : ""} flex min-h-56 flex-col rounded-2xl border border-[#1A1A1E]/10 bg-white p-6`}><Icon className="h-5 w-5 text-[#0038FF]" /><h3 className="mt-8 font-semibold">{service.title}</h3><p className="mt-2 text-sm leading-relaxed text-[#1A1A1E]/55">{service.desc}</p><p className="mt-5 font-mono text-xs text-[#1A1A1E]/45">{consult ? "Mulai dari diskusi singkat" : "Mulai dari Rp 25.000"}</p><button onClick={consult ? onConsult : onOrder} className="mt-auto pt-5 text-left text-sm font-semibold text-[#0038FF]">{consult ? "Atur konsultasi" : "Pesan layanan"}</button></motion.article>; })}</div></section>;
+  return <section className="mx-auto -mt-6 max-w-6xl px-6 pb-20"><div className="mb-10 max-w-xl"><p className="mb-2 font-mono text-xs tracking-widest text-[#0038FF]">LAYANAN</p><h2 className="font-heading text-4xl tracking-tight">Pilih paket yang pas.</h2><p className="mt-3 text-sm leading-relaxed text-[#1A1A1E]/55">Harga awal transparan, ruang lingkup jelas, dan konsultasi bisa dipisahkan dari pesanan.</p></div><div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">{services.map((service, index) => { const Icon = service.icon; const consult = service.id === "konsultasi"; return <motion.article key={service.id} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: .25 }} transition={{ delay: index * .06, duration: .45 }} className="flex min-h-56 flex-col rounded-2xl border border-[#1A1A1E]/10 bg-white p-6"><Icon className="h-5 w-5 text-[#0038FF]" /><h3 className="mt-8 font-semibold">{service.title}</h3><p className="mt-2 text-sm leading-relaxed text-[#1A1A1E]/55">{service.desc}</p><p className="mt-5 font-mono text-xs text-[#1A1A1E]/45">{consult ? "Mulai dari diskusi singkat" : "Mulai dari Rp 25.000"}</p><button onClick={consult ? onConsult : onOrder} className="mt-auto pt-5 text-left text-sm font-semibold text-[#0038FF]">{consult ? "Atur konsultasi" : "Pesan layanan"}</button></motion.article>; })}</div></section>;
 }
 
 function ConsultationModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -1764,6 +1764,8 @@ function ConsultationModal({ open, onClose }: { open: boolean; onClose: () => vo
 
 function WorkLightbox({ item, onClose }: { item: DisplayWorkItem | null; onClose: () => void }) {
   const { t } = useLang();
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => setImageFailed(false), [item?.id]);
   if (!item) return null;
 
   return (
@@ -1786,16 +1788,17 @@ function WorkLightbox({ item, onClose }: { item: DisplayWorkItem | null; onClose
           className="relative w-full bg-[#1A1A1E]/5 flex items-center justify-center overflow-hidden shrink-0"
           style={{ backgroundColor: item.hue }}
         >
-          {item.image ? (
+          {item.image && !imageFailed ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={item.image}
               alt={item.title}
               className="w-full h-auto max-h-[65vh] object-contain block"
+              onError={() => setImageFailed(true)}
             />
           ) : (
-            <div className="h-64 w-full flex items-center justify-center text-xs font-mono text-[#1A1A1E]/40">
-              [ Tanpa Gambar ]
+            <div className="flex aspect-[16/10] min-h-64 w-full items-center justify-center bg-[#1A1A1E]/[.04] text-xs font-mono text-[#1A1A1E]/40">
+              Tanpa gambar
             </div>
           )}
 
