@@ -513,17 +513,27 @@ function StepBrief({
       <h3 className="font-mono text-xs tracking-widest text-[#1A1A1E]/40 mb-1">{t("step2_kicker")}</h3>
       <h2 className="font-heading text-2xl font-semibold text-[#1A1A1E] mb-6">{t("step2_title")}</h2>
 
-      <label className="block text-sm font-medium text-[#1A1A1E] mb-2">Nama customer</label>
-      <input type="text" value={data.customerName} onChange={(e) => onChange({ ...data, customerName: e.target.value })} placeholder="Nama pemesan" className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#0038FF]" />
+      <label className="block text-sm font-medium text-[#1A1A1E] mb-2">
+  {t("step2_name_label")}
+</label>
+<input 
+  type="text" 
+  value={data.customerName} 
+  onChange={(e) => onChange({ ...data, customerName: e.target.value })} 
+  placeholder={t("step2_name_placeholder")} 
+  className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-[#0038FF] mb-4" 
+/>
 
-      <label className="block text-sm font-medium text-[#1A1A1E] mb-2">{t("step2_detail_label")}</label>
-      <textarea
-        rows={4}
-        value={data.scope}
-        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onChange({ ...data, scope: e.target.value })}
-        placeholder={t("step2_detail_placeholder")}
-        className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm text-[#1A1A1E] placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF] resize-none"
-      />
+<label className="block text-sm font-medium text-[#1A1A1E] mb-2">
+  {t("step2_detail_label")}
+</label>
+<textarea
+  rows={4}
+  value={data.scope}
+  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onChange({ ...data, scope: e.target.value })}
+  placeholder={t("step2_detail_placeholder")}
+  className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm text-[#1A1A1E] placeholder:text-[#1A1A1E]/30 focus:outline-none focus:ring-1 focus:ring-[#0038FF] focus:border-[#0038FF] resize-none"
+/>
 
       <label className="block text-sm font-medium text-[#1A1A1E] mb-2 mt-5">{t("step2_ref_label")}</label>
       <div className="relative">
