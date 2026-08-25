@@ -93,7 +93,7 @@ export default function MemberPage() {
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 flex items-center justify-between">
           <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-[#667085] transition-colors hover:text-[#17191f]"><ArrowLeft className="h-4 w-4" /> kookiez.</Link>
-          <span className="rounded-full bg-[#0038FF]/[.07] px-3 py-1 font-mono text-[10px] tracking-[.16em] text-[#0038FF]">MEMBER</span>
+          
         </div>
         <div className="mb-8 border-b border-black/[.08] pb-8">
           <p className="mb-2 font-mono text-[10px] tracking-[.18em] text-[#0038FF]">MEMBER WORKSPACE</p>

@@ -2016,11 +2016,11 @@ function Footer({ onOrder }: { onOrder: () => void }) {
               <Instagram className="w-4 h-4" /> @kookiez.idn
             </a>
             <a
-              href="mailto:hello@kookiez.idn"
+              href="mailto:kookiezst@gmail.com"
               aria-label="Email"
               className="flex items-center gap-1.5 text-xs text-[#1A1A1E]/45 hover:text-[#0038FF] transition-colors"
             >
-              <Mail className="w-4 h-4" /> hello@kookiez.idn
+              <Mail className="w-4 h-4" /> kookiezst@gmail.com
             </a>
           </div>
         </div>
