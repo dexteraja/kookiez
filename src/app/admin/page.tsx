@@ -5,6 +5,7 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Topography from '@/components/TopographyBG';
+import ProfileCard from '@/components/Profile'
 import {
   ArrowLeft, LogOut, Plus, Minus, Volume2, VolumeX,
   Clock, Loader2, CheckCircle2, Eye, X, Upload, Send, AlertTriangle,
@@ -407,19 +408,19 @@ export default function AdminPage() {
     lowColor="#94A3B8"
     midColor="#CBD5E1"
     highColor="#F8FAFC"
-    speed={0.35}
-    morphAmount={3}
+    speed={0.3}
+    morphAmount={4}
     morphSpeed={0.05}
-    bands={2}
+    bands={3}
     thickness={0.01}
-    scale={2}
+    scale={1}
     pixelSize={1}
     glow={0.5}
     colorMode="elevation"
-    contrast={2}
+    contrast={3}
     brightness={1}
     fillBands={false}
-    opacity={0.4}
+    opacity={0.1}
     grain
     grainIntensity={0.05}
     mouseInteraction
@@ -449,6 +450,22 @@ export default function AdminPage() {
           <div><p className="font-mono text-[10px] tracking-[.16em] text-[#0038FF]">WORKSPACE</p><h1 className="mt-1 font-heading text-3xl font-semibold tracking-[-.02em]">Admin Dashboard</h1></div>
           
         </div>
+  
+<ProfileCard
+  name="Dexter"
+  title="Full-Stack Developer"
+  handle="hkimdxtr"
+  status="Do not Disturb"
+  contactText="Contact Me"
+  avatarUrl="@/public/me.png"
+  showUserInfo
+  enableTilt={true}
+  enableMobileTilt
+  onContactClick={() => console.log('Contact clicked')}
+  behindGlowColor="rgba(125, 190, 255, 0.67)"
+  behindGlowEnabled
+  innerGradient="linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)"
+/>
 
         <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
           <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">PRICE SETTINGS</p>
