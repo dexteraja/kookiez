@@ -4,6 +4,7 @@ import { UpdateOrderStatusSchema } from "@/lib/validation";
 import { sseBroadcaster } from "@/lib/sse/broadcaster";
 import { auth } from "@/auth";
 import { emailTemplate, sendMail } from "@/lib/mailer";
+import { appendOrderEvent } from "@/lib/order-events";
 
 export async function PATCH(
   req: NextRequest,
@@ -40,6 +41,10 @@ export async function PATCH(
 
     if (!result) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (previous?.status !== status) {
+      await appendOrderEvent(db, result.code, { type: "status_changed", label: `Status menjadi ${status}`, actor: "admin", actorName: session.user?.name ?? undefined, metadata: { status } });
     }
 
     if (result.customerEmail && previous?.status !== status) {

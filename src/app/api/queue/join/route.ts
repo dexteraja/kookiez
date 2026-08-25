@@ -8,6 +8,7 @@ import { getSiteSettings } from "@/lib/site-settings-repository";
 import { DEFAULT_PRICING, mergePricing, calculateDiscountedAmount } from "@/lib/pricing";
 import { findPromoCode } from "@/lib/promo-codes";
 import { emailTemplate, sendMail } from "@/lib/mailer";
+import { appendOrderEvent } from "@/lib/order-events";
 
 function generateOrderCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -161,6 +162,7 @@ export async function POST(req: NextRequest) {
       userId,
       idempotencyKey: data.idempotencyKey,
       whatsappUrl,
+      events: [{ id: crypto.randomUUID(), type: "order_created", label: "Order dibuat", actor: "system", createdAt: new Date() }],
     };
     try {
       await ordersCollection.insertOne(orderDoc);

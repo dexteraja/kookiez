@@ -1232,6 +1232,7 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
           <Link href="/lacak" className="hover:text-[#1A1A1E] transition-colors">
             {t("nav_track")}
           </Link>
+          {status === "authenticated" && <Link href="/member" className="hover:text-[#1A1A1E] transition-colors">Member Area</Link>}
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
@@ -1315,6 +1316,7 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
               <Link href="/lacak" className="text-left">
                 {t("nav_track")}
               </Link>
+              {status === "authenticated" && <Link href="/member" onClick={() => setOpen(false)} className="text-left">Member Area</Link>}
               <a href={waLink("Halo Kookiez, aku mau tanya-tanya soal jasa desain")} target="_blank" rel="noreferrer">
                 {t("nav_cs")}
               </a>
