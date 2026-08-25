@@ -2,7 +2,7 @@ import { Skeleton, SkeletonText } from "@/components/Skeleton";
 
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-[#F9F9FB]">
+    <div className="ui-shell min-h-screen">
       {/* Navbar placeholder */}
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <Skeleton className="h-5 w-24" />

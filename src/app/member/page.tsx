@@ -90,16 +90,17 @@ export default function MemberPage() {
 
   return (
     <main className="ui-shell min-h-screen px-4 py-8 text-[#17191f] sm:px-6 sm:py-12">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-4xl">
         <div className="mb-8 flex items-center justify-between">
           <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-[#667085] transition-colors hover:text-[#17191f]"><ArrowLeft className="h-4 w-4" /> kookiez.</Link>
           <span className="rounded-full bg-[#0038FF]/[.07] px-3 py-1 font-mono text-[10px] tracking-[.16em] text-[#0038FF]">MEMBER</span>
         </div>
-        <div className="mb-8 border-b border-black/[.08] pb-7">
-          <h1 className="font-heading text-3xl font-semibold tracking-[-.02em] sm:text-4xl">Pesanan kamu</h1>
+        <div className="mb-8 border-b border-black/[.08] pb-8">
+          <p className="mb-2 font-mono text-[10px] tracking-[.18em] text-[#0038FF]">MEMBER WORKSPACE</p>
+          <h1 className="font-heading text-4xl font-semibold tracking-[-.04em] sm:text-5xl">Pesanan kamu</h1>
           <p className="mt-2 text-sm text-[#667085]">{session.user.email}</p>
         </div>
-        <section className="ui-panel overflow-hidden">
+        <section className="ui-panel overflow-hidden shadow-[0_18px_44px_rgba(36,55,86,.07)]">
           {loading ? <div className="p-12 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></div> : orders.length === 0 ? <p className="p-12 text-center text-sm text-[#1A1A1E]/50">Belum ada pesanan.</p> : orders.map((order) => (
             <article key={order.code} className="border-b border-black/[.08] p-5 last:border-0 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-xs font-semibold tracking-[.08em] text-[#0038FF]">{order.code}</p><h2 className="mt-1 font-heading text-lg font-semibold">{order.service}</h2></div><span className="rounded-full bg-[#0038FF]/[.07] px-2.5 py-1 font-mono text-[11px] text-[#0038FF]">{statusLabels[order.status] ?? order.status}</span></div>

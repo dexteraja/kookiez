@@ -23,14 +23,14 @@ function EstimasiContent() {
   const estimate = isCustom ? null : Math.round((tier.base ?? 0) * rushMultiplier);
 
   return (
-    <div className="min-h-screen bg-[#F9F9FB] text-[#1A1A1E]">
-      <div className="max-w-6xl mx-auto px-6 py-16">
+    <div className="ui-shell min-h-screen text-[#1A1A1E]">
+      <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-16">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-[#1A1A1E]/50 hover:text-[#1A1A1E] mb-10">
           <ArrowLeft className="w-4 h-4" /> kookiez.
         </Link>
 
         <p className="font-mono text-xs tracking-widest text-[#0038FF] mb-2">{t("calc_kicker")}</p>
-        <h1 className="font-heading text-3xl font-semibold text-[#1A1A1E] tracking-tight mb-10">{t("calc_title")}</h1>
+        <h1 className="max-w-xl font-heading text-4xl font-semibold leading-[.98] tracking-[-.04em] text-[#1A1A1E] sm:text-5xl">{t("calc_title")}</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-8">
           <div className="space-y-6">
@@ -98,15 +98,15 @@ function EstimasiContent() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-[#1A1A1E]/10 p-6 h-fit sticky top-24">
+          <div className="ui-panel h-fit border-[#0038FF]/15 p-6 sm:p-7 lg:sticky lg:top-24">
             <div className="text-xs font-mono tracking-widest text-[#1A1A1E]/40 mb-2">{t("calc_result")}</div>
-            <div className="font-heading text-3xl font-semibold text-[#1A1A1E] mb-1">
+            <div className="font-heading text-4xl font-semibold leading-none tracking-[-.04em] text-[#1A1A1E] mb-1">
               {isCustom ? "Custom" : formatIDR(estimate ?? 0)}
             </div>
             {speed !== "normal" && !isCustom && <p className="text-xs text-[#1A1A1E]/40 mb-4">{t("calc_rush_note")}</p>}
             <Link
               href="/?order=1"
-              className="mt-3 w-full flex items-center justify-center gap-2 bg-[#0038FF] text-white text-sm font-medium py-3 rounded-lg hover:bg-[#0030DB] transition-colors"
+              className="ui-action mt-5 flex w-full items-center justify-center gap-2 bg-[#0038FF] py-3.5 text-sm font-medium text-white shadow-[0_8px_18px_rgba(0,56,255,.16)] hover:bg-[#0030DB]"
             >
               {t("calc_cta")} <ArrowRight className="w-4 h-4" />
             </Link>

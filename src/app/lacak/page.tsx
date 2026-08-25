@@ -122,7 +122,7 @@ function TrackContent() {
   }, [order?.code]);
 
   return (
-    <div className="min-h-screen bg-[#F9F9FB] text-[#1A1A1E]">
+    <div className="ui-shell min-h-screen text-[#1A1A1E]">
       <div className="max-w-2xl mx-auto px-6 py-16">
         <Link
           href="/"

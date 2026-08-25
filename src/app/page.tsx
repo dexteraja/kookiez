@@ -996,9 +996,9 @@ function OrderModal({
         exit={{ y: 40, opacity: 0 }}
         transition={{ duration: 0.25 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#F9F9FB] w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl max-h-[92vh] overflow-y-auto"
+        className="w-full max-h-[94vh] overflow-y-auto rounded-t-[1.5rem] bg-[#F1F4F8] shadow-[0_-12px_50px_rgba(17,24,39,.15)] sm:max-w-xl sm:rounded-[1.25rem]"
       >
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 sticky top-0 bg-[#F9F9FB] z-10 border-b border-[#1A1A1E]/10">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#1A1A1E]/10 bg-[#F1F4F8]/95 px-6 pb-4 pt-6 backdrop-blur-xl">
           <StepDots step={step} />
           <button onClick={onClose} aria-label={t("modal_close")}>
             <X className="w-5 h-5 text-[#1A1A1E]/40 hover:text-[#1A1A1E]" />
@@ -1222,13 +1222,13 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
   };
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 border-b border-[#1A1A1E]/10 bg-[#F9F9FB]/95 backdrop-blur">
+    <header className="fixed inset-x-0 top-0 z-40 border-b border-[#1A1A1E]/10 bg-[#F1F4F8]/90 backdrop-blur-xl">
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <button onClick={() => go(refs.home)} className="font-heading font-semibold text-lg text-[#1A1A1E]">
           kookiez<span className="text-[#0038FF]">.</span>
         </button>
 
-        <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-[#1A1A1E]/70">
+        <nav className="hidden items-center gap-6 text-[13px] font-medium text-[#1A1A1E]/65 md:flex lg:gap-7">
           <button onClick={() => go(refs.home)} className="hover:text-[#1A1A1E] transition-colors">
             {t("nav_home")}
           </button>
@@ -1272,7 +1272,7 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
   ) : null}
           <button
             onClick={onOrder}
-            className="bg-[#0038FF] text-white font-medium px-4 py-2 rounded-2xl text-sm hover:bg-[#0030DB] transition-colors"
+            className="ui-action bg-[#0038FF] px-4 py-2.5 text-sm font-medium text-white shadow-[0_8px_18px_rgba(0,56,255,.18)] hover:bg-[#0030DB]"
           >
             {t("nav_order")}
           </button>
@@ -1292,7 +1292,7 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="md:hidden overflow-hidden border-t border-[#1A1A1E]/10 bg-[#F9F9FB]"
+            className="md:hidden overflow-hidden border-t border-[#1A1A1E]/10 bg-[#F1F4F8]"
           >
             <div className="px-6 py-5 flex flex-col gap-4 text-sm font-medium text-[#1A1A1E]/80">
               {status === "authenticated" && (
