@@ -9,6 +9,7 @@ import { DEFAULT_PRICING, mergePricing, calculateDiscountedAmount } from "@/lib/
 import { findPromoCode } from "@/lib/promo-codes";
 import { emailTemplate, sendMail } from "@/lib/mailer";
 import { appendOrderEvent } from "@/lib/order-events";
+import { ObjectId } from "mongodb";
 
 function generateOrderCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -59,6 +60,23 @@ export async function POST(req: NextRequest) {
 
     const { db } = await connectToDatabase();
     const data = parsed.data;
+    if (data.fileUrls.length !== data.fileNames.length && data.fileUrls.length > 0) {
+      return NextResponse.json({ error: "Lampiran belum siap. Silakan unggah ulang file yang bermasalah." }, { status: 400 });
+    }
+    if (data.fileUrls.length > 0) {
+      const fileIds = data.fileUrls.map((fileUrl) => fileUrl.split("/").pop() ?? "");
+      if (fileIds.some((fileId) => !ObjectId.isValid(fileId))) {
+        return NextResponse.json({ error: "Referensi lampiran tidak valid." }, { status: 400 });
+      }
+      const ownedFiles = await db.collection("files.files").countDocuments({
+        _id: { $in: fileIds.map((fileId) => new ObjectId(fileId)) },
+        "metadata.userId": userId,
+        "metadata.kind": "brief",
+      });
+      if (ownedFiles !== fileIds.length) {
+        return NextResponse.json({ error: "Sebagian lampiran tidak dapat diverifikasi. Silakan unggah ulang." }, { status: 400 });
+      }
+    }
     const siteSettings = await getSiteSettings();
     const pricingSetting = await db.collection("site_settings").findOne({ key: "pricing" });
     const pricing = mergePricing(pricingSetting?.value ?? DEFAULT_PRICING);

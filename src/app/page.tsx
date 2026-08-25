@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, type ChangeEvent, type DragEvent, type RefObject } from "react";
+import { useState, useRef, useEffect, useCallback, type ChangeEvent, type DragEvent, type KeyboardEvent, type RefObject } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Menu, X, ArrowRight, ArrowLeft, Check, ChevronDown,
@@ -267,10 +267,12 @@ function updateResponsive3DAnimation(
 }
 
 interface UploadedFile {
+  id: string;
   name: string;
   size: string;
   url?: string;
   uploading?: boolean;
+  error?: string;
 }
 
 interface BriefData {
@@ -496,36 +498,38 @@ function StepBrief({
     }
     setFileError("");
     const incoming: UploadedFile[] = selected.map((f) => ({
+      id: crypto.randomUUID(),
       name: f.name,
       size: (f.size / 1024).toFixed(0) + " KB",
       uploading: true,
     }));
     onChange((prev) => ({ ...prev, files: [...prev.files, ...incoming] }));
 
-    selected.forEach(async (file) => {
+    selected.forEach(async (file, index) => {
+      const fileId = incoming[index].id;
       try {
         const form = new FormData();
         form.append("file", file);
         const res = await fetch("/api/upload", { method: "POST", body: form });
         const json = await res.json();
+        if (!res.ok || !json?.url) throw new Error(json?.error || "Upload gagal.");
         onChange((prev) => ({
           ...prev,
           files: prev.files.map((f) =>
-            f.name === file.name ? { ...f, uploading: false, url: json?.url } : f
+            f.id === fileId ? { ...f, uploading: false, url: json.url } : f
           ),
         }));
-      } catch {
-        // Upload gagal — tetap tandai selesai supaya UI tidak macet; brief text tetap terkirim manual via WA.
+      } catch (error) {
         onChange((prev) => ({
           ...prev,
-          files: prev.files.map((f) => (f.name === file.name ? { ...f, uploading: false } : f)),
+          files: prev.files.map((f) => (f.id === fileId ? { ...f, uploading: false, error: error instanceof Error ? error.message : "Upload gagal." } : f)),
         }));
       }
     });
   };
 
-  const removeFile = (name: string) => {
-    onChange((prev) => ({ ...prev, files: prev.files.filter((f) => f.name !== name) }));
+  const removeFile = (id: string) => {
+    onChange((prev) => ({ ...prev, files: prev.files.filter((f) => f.id !== id) }));
   };
 
   return (
@@ -580,7 +584,12 @@ function StepBrief({
           if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
         }}
         onClick={() => fileRef.current?.click()}
-        className={`rounded-2xl border border-dashed p-8 text-center cursor-pointer transition-colors ${
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
+          if (event.key === "Enter" || event.key === " ") fileRef.current?.click();
+        }}
+        className={`rounded-2xl border border-dashed p-8 text-center cursor-pointer select-none transition-colors ${
           dragActive ? "border-[#0038FF] bg-[#0038FF]/5" : "border-[#1A1A1E]/20 hover:border-[#1A1A1E]/40"
         }`}
       >
@@ -590,7 +599,10 @@ function StepBrief({
           multiple
           accept={BRIEF_FILE_ACCEPT}
           className="hidden"
-          onChange={(e: ChangeEvent<HTMLInputElement>) => e.target.files?.length && addFiles(e.target.files)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => {
+            if (e.target.files?.length) addFiles(e.target.files);
+            e.target.value = "";
+          }}
         />
         <UploadCloud className="w-5 h-5 mx-auto text-[#1A1A1E]/40 mb-2" />
         <p className="text-sm text-[#1A1A1E]/60">
@@ -605,18 +617,18 @@ function StepBrief({
         <ul className="mt-3 space-y-1.5">
           {data.files.map((f) => (
             <li
-              key={f.name}
+              key={f.id}
               className="flex items-center justify-between text-sm rounded-xl border border-[#1A1A1E]/10 px-3 py-2"
             >
               <span className="flex items-center gap-2 text-[#1A1A1E]/70 truncate">
                 <FileText className="w-3.5 h-3.5 shrink-0 text-[#1A1A1E]/40" />
                 {f.name}
                 <span className="text-[#1A1A1E]/30 font-mono text-xs">{f.size}</span>
-                <span className="text-[10px] font-mono text-[#0038FF]/60">
-                  {f.uploading ? t("step2_file_uploading") : t("step2_file_uploaded")}
+                <span className={`text-[10px] font-mono ${f.error ? "text-red-600" : "text-[#0038FF]/60"}`}>
+                  {f.uploading ? t("step2_file_uploading") : f.error ? f.error : t("step2_file_uploaded")}
                 </span>
               </span>
-              <button onClick={() => removeFile(f.name)} aria-label={`Hapus ${f.name}`}>
+              <button type="button" onClick={() => removeFile(f.id)} aria-label={`Hapus ${f.name}`}>
                 <Trash2 className="w-3.5 h-3.5 text-[#1A1A1E]/30 hover:text-[#0038FF]" />
               </button>
             </li>

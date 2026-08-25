@@ -10,7 +10,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
   if ("response" in access) return access.response;
   const code = (await params).code.toUpperCase();
   const { db } = await connectToDatabase();
-  const order = await db.collection("orders").findOne({ code, userId: access.user.id });
+  const order = await db.collection("orders").findOne({
+    code,
+    $or: [
+      { userId: access.user.id },
+      { userId: { $exists: false }, customerEmail: access.user.email },
+    ],
+  });
   if (!order) return NextResponse.json({ error: "Invoice tidak ditemukan." }, { status: 404 });
 
   const document = new PDFDocument({ size: "A4", margin: 52 });
@@ -39,5 +45,5 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
   document.text("Invoice ini bukan bukti pembayaran lunas sebelum pembayaran terverifikasi.");
   document.end();
   const pdf = await done;
-  return new NextResponse(new Uint8Array(pdf), { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="INV-${code}.pdf"` } });
+  return new NextResponse(new Uint8Array(pdf), { headers: { "Content-Type": "application/pdf", "Content-Length": String(pdf.byteLength), "Content-Disposition": `attachment; filename="INV-${code}.pdf"`, "Cache-Control": "private, no-store" } });
 }

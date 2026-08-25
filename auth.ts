@@ -57,7 +57,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Saat baru saja berhasil login (Google atau Credentials)
       if (user) {
         const email = user.email;
-        token.role = ((user as { role?: Role }).role ?? "member") as Role;
+        const databaseUser = email ? await getUserByEmail(email) : null;
+        token.role = ((databaseUser?.role ?? (user as { role?: Role }).role ?? "member")) as Role;
         token.sub = user.id;
         token.email = email;
       }
