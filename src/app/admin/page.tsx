@@ -411,17 +411,7 @@ export default function AdminPage() {
             <ArrowLeft className="w-4 h-4" /> kookiez.
           </Link>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
-              className="p-2 rounded-lg border border-[#1A1A1E]/15 hover:border-[#1A1A1E]/30 transition-colors"
-              title={soundEnabled ? "Matikan suara" : "Nyalakan suara"}
-            >
-              {soundEnabled ? (
-                <Volume2 className="w-4 h-4 text-[#1A1A1E]/60" />
-              ) : (
-                <VolumeX className="w-4 h-4 text-[#1A1A1E]/40" />
-              )}
-            </button>
+      
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
               className="inline-flex items-center gap-1.5 text-sm text-[#1A1A1E]/50 hover:text-[#1A1A1E]"
@@ -433,7 +423,7 @@ export default function AdminPage() {
 
         <div className="mb-7 flex items-end justify-between gap-4 border-b border-black/[.08] pb-6">
           <div><p className="font-mono text-[10px] tracking-[.16em] text-[#0038FF]">WORKSPACE</p><h1 className="mt-1 font-heading text-3xl font-semibold tracking-[-.02em]">Admin Dashboard</h1></div>
-          <span className="hidden rounded-full bg-[#17191f] px-3 py-1.5 font-mono text-[10px] tracking-[.12em] text-white sm:inline-flex">LIVE</span>
+          
         </div>
 
         <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
@@ -614,13 +604,12 @@ export default function AdminPage() {
 
         <section className="mb-8 border border-red-200 rounded-xl p-5 bg-red-50/60">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
             <div className="min-w-0 flex-1">
               <h2 className="font-heading text-lg font-semibold text-red-900">Reset data aplikasi</h2>
               <p className="mt-1 text-sm text-red-800/75">Menghapus order, promo, pengaturan, portfolio, dan semua file GridFS. Akun admin tetap dipertahankan.</p>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <input value={resetConfirmation} onChange={(event) => setResetConfirmation(event.target.value.toUpperCase())} placeholder="Ketik RESET" aria-label="Konfirmasi reset database" className="min-w-0 flex-1 rounded-lg border border-red-200 bg-white px-3 py-2.5 font-mono text-sm focus:border-red-500 focus:outline-none" />
-                <button onClick={resetDatabase} disabled={resetting || resetConfirmation !== "RESET"} className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"><AlertTriangle className="h-4 w-4" />{resetting ? "Menghapus..." : "Hapus semua data"}</button>
+                <button onClick={resetDatabase} disabled={resetting || resetConfirmation !== "RESET"} className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40">{resetting ? "Menghapus..." : "Hapus semua data"}</button>
               </div>
               {resetMessage && <p className="mt-2 text-xs text-red-800" role="status">{resetMessage}</p>}
             </div>

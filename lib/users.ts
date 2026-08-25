@@ -58,14 +58,24 @@ export async function bootstrapAdminIfNeeded() {
 export async function verifyUserPassword(email: string, password: string) {
   const users = await usersCollection();
   const user = await users.findOne({ email: normalizeEmail(email) });
-  if (!user || user.status === "disabled" || !user.passwordHash) return null;
-  if (user.lockoutUntil && user.lockoutUntil > new Date()) return null;
+  const { db } = await connectToDatabase();
+  const recordAuthEvent = (event: string) => db.collection("auth_events").insertOne({ email: normalizeEmail(email), event, createdAt: new Date() }).catch(() => undefined);
+  if (!user || user.status === "disabled" || !user.passwordHash) {
+    await recordAuthEvent("login_failed");
+    return null;
+  }
+  if (user.lockoutUntil && user.lockoutUntil > new Date()) {
+    await recordAuthEvent("login_blocked_lockout");
+    return null;
+  }
   if (!(await verifyPassword(password, user.passwordHash))) {
     const failedLoginCount = (user.failedLoginCount ?? 0) + 1;
     const lockoutUntil = failedLoginCount >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : undefined;
     await users.updateOne({ _id: user._id }, { $set: { failedLoginCount, ...(lockoutUntil ? { lockoutUntil } : {}), updatedAt: new Date() } });
+    await recordAuthEvent(lockoutUntil ? "login_failed_lockout" : "login_failed");
     return null;
   }
   await users.updateOne({ _id: user._id }, { $set: { failedLoginCount: 0, lastLoginAt: new Date(), updatedAt: new Date() }, $unset: { lockoutUntil: "" } });
+  await recordAuthEvent("login_success");
   return user;
 }

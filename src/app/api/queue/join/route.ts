@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { JoinQueueSchema } from "@/lib/validation";
-import { rateLimit } from "@/lib/rate-limit";
 import { sseBroadcaster } from "@/lib/sse/broadcaster";
 import { requireUser } from "@/lib/auth-helpers";
 import { getSiteSettings } from "@/lib/site-settings-repository";
@@ -10,6 +9,7 @@ import { findPromoCode } from "@/lib/promo-codes";
 import { emailTemplate, sendMail } from "@/lib/mailer";
 import { appendOrderEvent } from "@/lib/order-events";
 import { ObjectId } from "mongodb";
+import { enforceRateLimit } from "@/lib/security";
 
 function generateOrderCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -22,22 +22,8 @@ function generateOrderCode(): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-    const rl = rateLimit(`join:${ip}`, 5, 60000);
-
-    if (!rl.allowed) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
-          },
-        }
-      );
-    }
-
+    const limited = enforceRateLimit(req, "join", 5, 60 * 1000);
+    if (limited) return limited;
     const access = await requireUser();
     if ("response" in access) return access.response;
     const customerEmail = access.user.email;

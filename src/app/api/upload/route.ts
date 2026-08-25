@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth-helpers";
 import { storeFile } from "@/lib/file-storage";
 import { isAllowedFile } from "@/lib/file-constraints";
+import { enforceRateLimit, hasBodyWithinLimit } from "@/lib/security";
 
 export async function POST(req: NextRequest) {
+  const limited = enforceRateLimit(req, "upload", 20, 10 * 60 * 1000);
+  if (limited) return limited;
   const access = await requireUser();
   if ("response" in access) return access.response;
+  if (!hasBodyWithinLimit(req, 10 * 1024 * 1024 + 256 * 1024)) return NextResponse.json({ error: "Ukuran upload terlalu besar." }, { status: 413 });
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;

@@ -2,10 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { connectToDatabase } from "@/lib/mongodb";
 import { hashPassword, validPassword } from "@/lib/password";
+import { enforceRateLimit, hasBodyWithinLimit } from "@/lib/security";
 
 const schema = z.object({ name: z.string().trim().min(2).max(80), email: z.string().trim().email().max(160), password: z.string() });
 
 export async function POST(request: Request) {
+  const limited = enforceRateLimit(request, "register", 3, 15 * 60 * 1000);
+  if (limited) return limited;
+  if (!hasBodyWithinLimit(request, 16 * 1024)) return NextResponse.json({ error: "Request terlalu besar." }, { status: 413 });
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success || !validPassword(parsed.data.password)) return NextResponse.json({ error: "Nama, email, dan password minimal 8 karakter wajib diisi." }, { status: 400 });
   try {

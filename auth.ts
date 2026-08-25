@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { bootstrapAdminIfNeeded, getUserByEmail, normalizeEmail, verifyUserPassword } from "@/lib/users";
+import { rateLimit } from "@/lib/rate-limit";
 
 /* ------------------------------------------------------------------ */
 /*  Role admin — DEMO: daftar email & password di sini. Untuk          */
@@ -30,10 +31,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         otp: { label: "OTP", type: "text" },
         googleOtp: { label: "Google OTP", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const email = credentials?.email ? normalizeEmail(credentials.email.toString()) : "";
         const password = credentials?.password?.toString() ?? "";
         if (!email || !password) return null;
+        const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+        const attempt = rateLimit(`login:${ip}:${email}`, 5, 15 * 60 * 1000);
+        if (!attempt.allowed) return null;
         await bootstrapAdminIfNeeded();
         const user = await verifyUserPassword(email, password);
         if (!user || !user._id) return null;

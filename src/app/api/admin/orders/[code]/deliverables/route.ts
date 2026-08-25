@@ -4,10 +4,14 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { storeFile } from "@/lib/file-storage";
 import { isAllowedFile } from "@/lib/file-constraints";
 import { appendOrderEvent } from "@/lib/order-events";
+import { enforceRateLimit, hasBodyWithinLimit } from "@/lib/security";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
+  const limited = enforceRateLimit(request, "admin-upload", 30, 10 * 60 * 1000);
+  if (limited) return limited;
   const access = await requireAdmin();
   if ("response" in access) return access.response;
+  if (!hasBodyWithinLimit(request, 10 * 1024 * 1024 + 256 * 1024)) return NextResponse.json({ error: "Ukuran upload terlalu besar." }, { status: 413 });
   const code = (await params).code.toUpperCase();
   const formData = await request.formData();
   const file = formData.get("file");

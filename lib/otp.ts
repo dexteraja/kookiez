@@ -34,8 +34,8 @@ export async function consumeOtp(email: string, code: string) {
     await otps.updateOne({ _id: record._id }, { $inc: { attempts: 1 } });
     return false;
   }
-  await otps.deleteOne({ _id: record._id });
-  return true;
+  const consumed = await otps.deleteOne({ _id: record._id, codeHash: record.codeHash });
+  return consumed.deletedCount === 1;
 }
 
 export function hasSmtpConfig() {
