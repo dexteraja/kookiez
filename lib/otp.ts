@@ -1,21 +1,12 @@
 import crypto from "node:crypto";
-import nodemailer from "nodemailer";
 import { connectToDatabase } from "@/lib/mongodb";
+import { emailTemplate, sendMail } from "@/lib/mailer";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
 function hash(value: string) {
   return crypto.createHash("sha256").update(`${value}:${process.env.AUTH_SECRET ?? "otp-secret"}`).digest("hex");
-}
-
-function mailer() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT ?? 587),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
-  });
 }
 
 export async function createAndSendOtp(email: string) {
@@ -25,12 +16,11 @@ export async function createAndSendOtp(email: string) {
   const otps = db.collection("login_otps");
   await otps.deleteMany({ email });
   await otps.insertOne({ requestId, email, codeHash: hash(code), attempts: 0, expiresAt: new Date(Date.now() + OTP_TTL_MS), createdAt: new Date() });
-  await mailer().sendMail({
-    from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
+  await sendMail({
     to: email,
-    subject: "Kode OTP login kookiez.",
+    subject: "Kode login Kookiez",
     text: `Kode OTP kamu adalah ${code}. Kode ini berlaku selama 10 menit dan jangan dibagikan kepada siapa pun.`,
-    html: `<p>Kode OTP login kamu:</p><p style="font-size:28px;font-weight:700;letter-spacing:8px">${code}</p><p>Kode berlaku selama 10 menit.</p>`,
+    html: emailTemplate({ title: "Kode login kamu", preheader: "Verifikasi akun Kookiez", greeting: "Gunakan kode berikut untuk melanjutkan proses login:", body: `<div style="margin:24px 0;padding:20px;text-align:center;background:#f4f6fa;border-radius:10px;font-size:32px;font-weight:700;letter-spacing:8px;color:#0038ff">${code}</div><p>Kode ini berlaku selama 10 menit. Jangan bagikan kode ini kepada siapa pun.</p>` }),
   });
   return requestId;
 }

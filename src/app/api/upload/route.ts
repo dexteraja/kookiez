@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth-helpers";
-import { storeFile } from "@/lib/file-storage";
-
-const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf", "application/zip"]);
+import { isAllowedFile, storeFile } from "@/lib/file-storage";
 
 export async function POST(req: NextRequest) {
   const access = await requireUser();
@@ -15,7 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    if (!allowedTypes.has(file.type)) return NextResponse.json({ error: "Tipe file tidak didukung." }, { status: 400 });
+    if (!isAllowedFile(file)) return NextResponse.json({ error: "Tipe atau ekstensi file tidak didukung." }, { status: 400 });
     const stored = await storeFile(file, { kind: "brief", userId: access.user.id! });
     return NextResponse.json({ url: `/api/files/${stored.id}`, id: stored.id, name: stored.name });
   } catch (err) {

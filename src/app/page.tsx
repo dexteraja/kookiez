@@ -34,6 +34,11 @@ const waLink = (msg: string): string => `https://wa.me/${WA_NUMBER}?text=${encod
 
 type PaymentPlan = "deposit" | "full";
 type PaymentMethod = "qris" | "va" | "card";
+const MAX_BRIEF_FILES = 10;
+const MAX_BRIEF_FILE_SIZE = 10 * 1024 * 1024;
+const BRIEF_FILE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf", "application/zip"]);
+const BRIEF_FILE_ACCEPT = ".jpg,.jpeg,.png,.webp,.pdf,.zip";
+const BRIEF_FILE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".pdf", ".zip"]);
 type Responsive3DLayout = {
   cameraZ: number;
   fov: number;
@@ -471,18 +476,33 @@ function StepBrief({
   const { t } = useLang();
   const { data: session } = useSession();
   const [dragActive, setDragActive] = useState(false);
+  const [fileError, setFileError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Upload nyata ke /api/upload (lihat route-nya untuk detail penyimpanan file).
   const addFiles = (fileList: FileList) => {
-    const incoming: UploadedFile[] = Array.from(fileList).map((f) => ({
+    const selected = Array.from(fileList);
+    const invalid = selected.find((file) => {
+      const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+      return !BRIEF_FILE_TYPES.has(file.type) || !BRIEF_FILE_EXTENSIONS.has(extension) || file.size > MAX_BRIEF_FILE_SIZE;
+    });
+    if (invalid) {
+      setFileError(`${invalid.name}: gunakan JPG, PNG, WebP, PDF, atau ZIP dengan ukuran maksimal 10 MB.`);
+      return;
+    }
+    if (data.files.length + selected.length > MAX_BRIEF_FILES) {
+      setFileError(`Maksimal ${MAX_BRIEF_FILES} file dapat dilampirkan.`);
+      return;
+    }
+    setFileError("");
+    const incoming: UploadedFile[] = selected.map((f) => ({
       name: f.name,
       size: (f.size / 1024).toFixed(0) + " KB",
       uploading: true,
     }));
     onChange((prev) => ({ ...prev, files: [...prev.files, ...incoming] }));
 
-    Array.from(fileList).forEach(async (file) => {
+    selected.forEach(async (file) => {
       try {
         const form = new FormData();
         form.append("file", file);
@@ -568,6 +588,7 @@ function StepBrief({
           ref={fileRef}
           type="file"
           multiple
+          accept={BRIEF_FILE_ACCEPT}
           className="hidden"
           onChange={(e: ChangeEvent<HTMLInputElement>) => e.target.files?.length && addFiles(e.target.files)}
         />
@@ -577,6 +598,8 @@ function StepBrief({
         </p>
         <p className="text-xs text-[#1A1A1E]/35 mt-1">{t("step2_file_hint")}</p>
       </div>
+      <p className="text-xs text-[#1A1A1E]/45 mt-2">Format: JPG, PNG, WebP, PDF, ZIP · maksimal 10 MB per file · maksimal 10 file.</p>
+      {fileError && <p role="alert" className="text-xs text-red-600 mt-2">{fileError}</p>}
 
       {data.files.length > 0 && (
         <ul className="mt-3 space-y-1.5">
@@ -876,6 +899,25 @@ function OrderModal({
     step === 4;
 
   const handlePay = async () => {
+    const references = brief.refs.split(/[\n,]+/).map((link) => link.trim()).filter(Boolean);
+    const validReferences = references.length <= 5 && references.every((link) => {
+      try {
+        const url = new URL(link);
+        return ["http:", "https:"].includes(url.protocol) && link.length <= 500;
+      } catch {
+        return false;
+      }
+    });
+    if (!validReferences) {
+      window.alert("Link referensi harus berupa URL http/https yang valid, maksimal 5 link.");
+      setStep(2);
+      return;
+    }
+    if (brief.files.some((file) => file.uploading || !file.url)) {
+      window.alert("Tunggu sampai semua file selesai diunggah atau hapus file yang gagal.");
+      setStep(2);
+      return;
+    }
     setPaying(true);
     idempotencyKeyRef.current ??= crypto.randomUUID();
     const tier = budgetTiers.find((tItem) => tItem.id === budgetData.budget);

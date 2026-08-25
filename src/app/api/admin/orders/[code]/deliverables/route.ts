@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { connectToDatabase } from "@/lib/mongodb";
-import { storeFile } from "@/lib/file-storage";
-
-const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf", "application/zip"]);
+import { isAllowedFile, storeFile } from "@/lib/file-storage";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const access = await requireAdmin();
@@ -11,7 +9,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const code = (await params).code.toUpperCase();
   const formData = await request.formData();
   const file = formData.get("file");
-  if (!(file instanceof File) || !allowedTypes.has(file.type)) return NextResponse.json({ error: "File tidak valid atau tipenya tidak didukung." }, { status: 400 });
+  if (!(file instanceof File) || !isAllowedFile(file)) return NextResponse.json({ error: "File tidak valid atau tipenya tidak didukung." }, { status: 400 });
   const { db } = await connectToDatabase();
   const order = await db.collection("orders").findOne({ code });
   if (!order) return NextResponse.json({ error: "Order tidak ditemukan." }, { status: 404 });

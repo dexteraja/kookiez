@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth-helpers";
 import { getSiteSettings } from "@/lib/site-settings-repository";
 import { DEFAULT_PRICING, mergePricing, calculateDiscountedAmount } from "@/lib/pricing";
 import { findPromoCode } from "@/lib/promo-codes";
-import { sendMail } from "@/lib/mailer";
+import { emailTemplate, sendMail } from "@/lib/mailer";
 
 function generateOrderCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
       to: customerEmail,
       subject: `Order ${orderCode} diterima - Kookiez`,
       text: `Halo ${data.customerName}, order ${orderCode} sudah diterima. Total: ${finalAmount == null ? "Custom" : finalAmount}.`,
-      html: `<p>Halo ${data.customerName},</p><p>Order <strong>${orderCode}</strong> sudah diterima.</p><p>Total: <strong>${finalAmount == null ? "Custom" : finalAmount}</strong></p>`,
+      html: emailTemplate({ title: "Order berhasil diterima", preheader: `Order ${orderCode}`, greeting: `Halo ${data.customerName}, terima kasih sudah mempercayakan project kamu kepada Kookiez.`, body: "Order kamu sudah tercatat dan akan segera kami review.", details: [["Kode order", orderCode], ["Layanan", data.service], ["Budget", data.budgetLabel || "Custom"], ["Total", finalAmount == null ? "Custom" : String(finalAmount)], ["Tenggat", data.deadline || "Fleksibel"]], closing: "Simpan kode order ini untuk melacak progres project kamu." }),
     }).catch((error) => console.error("Order confirmation email failed:", error));
 
     sseBroadcaster.broadcast({

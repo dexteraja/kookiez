@@ -3,7 +3,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { UpdateOrderStatusSchema } from "@/lib/validation";
 import { sseBroadcaster } from "@/lib/sse/broadcaster";
 import { auth } from "@/auth";
-import { sendMail } from "@/lib/mailer";
+import { emailTemplate, sendMail } from "@/lib/mailer";
 
 export async function PATCH(
   req: NextRequest,
@@ -47,7 +47,7 @@ export async function PATCH(
         to: result.customerEmail,
         subject: `Update order ${result.code} - Kookiez`,
         text: `Status order ${result.code} sekarang: ${status}.`,
-        html: `<p>Status order <strong>${result.code}</strong> sekarang: <strong>${status}</strong>.</p>`,
+        html: emailTemplate({ title: "Status order diperbarui", preheader: `Order ${result.code}`, greeting: `Halo ${result.customerName || ""}, status project kamu baru saja diperbarui.`, body: "Kami akan terus mengabari kamu saat ada perkembangan berikutnya.", details: [["Kode order", String(result.code)], ["Status baru", status]] }),
       }).catch((error) => console.error("Order status email failed:", error));
     }
 

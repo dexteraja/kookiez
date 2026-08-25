@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { connectToDatabase } from "@/lib/mongodb";
 import { readFile } from "@/lib/file-storage";
-import { sendMail } from "@/lib/mailer";
+import { emailTemplate, sendMail } from "@/lib/mailer";
 import { DeliverableMessageSchema } from "@/lib/validation";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     const plainMessage = message || `Halo ${order.customerName || ""}, project untuk order ${code} sudah siap. File terlampir.`;
     const safeMessage = plainMessage.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character);
-    await sendMail({ to: order.customerEmail, subject: `Project order ${code} dari Kookiez`, text: plainMessage, html: `<p>${safeMessage}</p><p>File project terlampir pada email ini.</p>`, attachments });
+    await sendMail({ to: order.customerEmail, subject: `Project order ${code} dari Kookiez`, text: `${plainMessage}\n\nFile project terlampir pada email ini.`, html: emailTemplate({ title: "Project kamu sudah siap", preheader: `Order ${code}`, greeting: `Halo ${order.customerName || ""}, project untuk order ${code} sudah selesai.`, body: `<p style="white-space:pre-wrap">${safeMessage}</p><p>File project sudah terlampir pada email ini.</p>`, details: [["Kode order", code], ["Jumlah file", String(attachments.length)]], closing: "Terima kasih sudah berkarya bersama Kookiez." }), attachments });
     await db.collection("orders").updateOne({ code }, { $set: { projectSentAt: new Date(), projectSendError: null } });
     return NextResponse.json({ ok: true, sentTo: order.customerEmail });
   } catch (error) {

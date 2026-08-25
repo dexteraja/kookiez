@@ -86,6 +86,8 @@ const dict = {
 
     step2_kicker: "LANGKAH 02",
     step2_title: "Ceritakan brief-nya",
+    step2_name_label: "Nama customer",              // <-- Tambah ini
+    step2_name_placeholder: "Nama pemesan",
     step2_detail_label: "Detail desain",
     step2_detail_placeholder: "Mau desain seperti apa? Warna, gaya, ukuran, dan kegunaannya untuk apa.",
     step2_ref_label: "Link referensi",
@@ -206,6 +208,8 @@ const dict = {
 
     step2_kicker: "STEP 02",
     step2_title: "Tell us the brief",
+    step2_name_label: "Customer name",              // <-- Tambah ini
+    step2_name_placeholder: "Orderer name",
     step2_detail_label: "Design details",
     step2_detail_placeholder: "What kind of design do you want? Colors, style, size, and what it's for.",
     step2_ref_label: "Reference links",

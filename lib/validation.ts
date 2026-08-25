@@ -1,9 +1,22 @@
 import { z } from "zod";
 
+const referenceLinks = (value: string) => {
+  const links = value.split(/[\n,]+/).map((link) => link.trim()).filter(Boolean);
+  if (links.length > 5) return false;
+  return links.every((link) => {
+    try {
+      const url = new URL(link);
+      return ["http:", "https:"].includes(url.protocol) && link.length <= 500;
+    } catch {
+      return false;
+    }
+  });
+};
+
 export const JoinQueueSchema = z.object({
   service: z.string().trim().min(1).max(120, "Service is too long"),
   briefScope: z.string().trim().min(1).max(5000, "Brief is too long"),
-  briefRefs: z.string().trim().max(2000).optional().default(""),
+  briefRefs: z.string().trim().max(2000).refine(referenceLinks, "Masukkan maksimal 5 link URL yang valid (http/https), pisahkan dengan koma atau baris baru.").optional().default(""),
   budgetLabel: z.string().trim().max(160).optional().default(""),
   deadline: z.string().trim().max(40).optional().default(""),
   plan: z.enum(["deposit", "full"]).optional().default("deposit"),
