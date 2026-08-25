@@ -451,21 +451,7 @@ export default function AdminPage() {
           
         </div>
   
-<ProfileCard
-  name="Dexter"
-  title="Full-Stack Developer"
-  handle="hkimdxtr"
-  status="Do not Disturb"
-  contactText="Contact Me"
-  avatarUrl="@/public/me.png"
-  showUserInfo
-  enableTilt={true}
-  enableMobileTilt
-  onContactClick={() => console.log('Contact clicked')}
-  behindGlowColor="rgba(125, 190, 255, 0.67)"
-  behindGlowEnabled
-  innerGradient="linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)"
-/>
+
 
         <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
           <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">PRICE SETTINGS</p>
