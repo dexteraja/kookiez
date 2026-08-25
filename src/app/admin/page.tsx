@@ -403,8 +403,7 @@ export default function AdminPage() {
 
   return (
     <div className="admin-shell ui-shell min-h-screen text-[#17191f]">
-      <div className="max-w-5xl mx-auto px-6 py-12">
-        <Topography
+      <Topography
     lowColor="#3B82F6"
     midColor="#ffffff"
     highColor="#FFFFFF"
@@ -427,6 +426,8 @@ export default function AdminPage() {
     mouseRadius={0.3}
     mouseStrength={0.4}
   />
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        
         <div className="flex items-center justify-between mb-6">
           <Link
             href="/"
