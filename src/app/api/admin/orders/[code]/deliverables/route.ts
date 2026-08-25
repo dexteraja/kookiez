@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { connectToDatabase } from "@/lib/mongodb";
-import { isAllowedFile, storeFile } from "@/lib/file-storage";
+import { storeFile } from "@/lib/file-storage";
+import { isAllowedFile } from "@/lib/file-constraints";
+import { appendOrderEvent } from "@/lib/order-events";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const access = await requireAdmin();
@@ -15,5 +17,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!order) return NextResponse.json({ error: "Order tidak ditemukan." }, { status: 404 });
   const stored = await storeFile(file, { kind: "deliverable", orderCode: code, adminId: access.user.id! });
   await db.collection<{ deliverables?: unknown[] }>("orders").updateOne({ code }, { $push: { deliverables: { ...stored, uploadedAt: new Date() } } });
+  await appendOrderEvent(db, code, { type: "deliverable_uploaded", label: `Project diunggah: ${stored.name}`, actor: "admin", actorName: access.user.name ?? "Kookiez", metadata: { deliverableId: stored.id } });
   return NextResponse.json({ file: stored }, { status: 201 });
 }

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { DEFAULT_PRICING, type PricingOverride } from "@/lib/pricing";
+import { ALLOWED_FILE_ACCEPT, MAX_FILE_SIZE } from "@/lib/file-constraints";
 
 type OrderStatus = "pending" | "progress" | "review" | "done";
 
@@ -87,6 +88,9 @@ export default function AdminPage() {
   const [resetting, setResetting] = useState(false);
   const [orderSearch, setOrderSearch] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | OrderStatus>("all");
+  const [uploadingCode, setUploadingCode] = useState<string | null>(null);
+  const [sendingCode, setSendingCode] = useState<string | null>(null);
+  const [orderActionMessage, setOrderActionMessage] = useState<Record<string, string>>({});
   const eventSourceRef = useRef<EventSource | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -143,7 +147,7 @@ export default function AdminPage() {
 
   const fetchAdminData = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/orders");
+      const res = await fetch("/api/admin/orders", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setOrders(data.orders);
@@ -330,18 +334,41 @@ export default function AdminPage() {
   };
 
   const uploadDeliverable = async (code: string, file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch(`/api/admin/orders/${code}/deliverables`, { method: "POST", body: formData });
-    if (!res.ok) window.alert((await res.json()).error || "Upload gagal.");
-    else fetchAdminData();
+    if (file.size > MAX_FILE_SIZE) {
+      setOrderActionMessage((current) => ({ ...current, [code]: "Ukuran file maksimal 10 MB." }));
+      return;
+    }
+    setUploadingCode(code);
+    setOrderActionMessage((current) => ({ ...current, [code]: "Mengunggah project..." }));
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/admin/orders/${code}/deliverables`, { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload gagal.");
+      await fetchAdminData();
+      setOrderActionMessage((current) => ({ ...current, [code]: "File berhasil ditambahkan. Kamu bisa upload versi berikutnya atau kirim project." }));
+    } catch (error) {
+      setOrderActionMessage((current) => ({ ...current, [code]: error instanceof Error ? error.message : "Upload gagal." }));
+    } finally {
+      setUploadingCode(null);
+    }
   };
 
   const sendProject = async (code: string) => {
-    const res = await fetch(`/api/admin/orders/${code}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
-    const data = await res.json();
-    window.alert(res.ok ? `Project terkirim ke ${data.sentTo}.` : data.error || "Email gagal dikirim.");
-    if (res.ok) fetchAdminData();
+    setSendingCode(code);
+    setOrderActionMessage((current) => ({ ...current, [code]: "Mengirim project..." }));
+    try {
+      const res = await fetch(`/api/admin/orders/${code}/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Email gagal dikirim.");
+      await fetchAdminData();
+      setOrderActionMessage((current) => ({ ...current, [code]: `Project terkirim ke ${data.sentTo}.` }));
+    } catch (error) {
+      setOrderActionMessage((current) => ({ ...current, [code]: error instanceof Error ? error.message : "Email gagal dikirim." }));
+    } finally {
+      setSendingCode(null);
+    }
   };
 
   const resetDatabase = async () => {
@@ -690,23 +717,24 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    <details className="mt-3 border-t border-[#1A1A1E]/8 pt-3">
-                      <summary className="cursor-pointer text-xs font-medium text-[#1A1A1E]/55">Lihat detail order</summary>
+                    <details className="mt-3 border-t border-[#1A1A1E]/8 pt-3 group">
+                      <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-medium text-[#1A1A1E]/65 hover:text-[#0038FF]"><span>Lihat detail order</span><span className="text-[10px] text-[#98a2b3] group-open:hidden">Buka</span><span className="hidden text-[10px] text-[#98a2b3] group-open:inline">Tutup</span></summary>
                       <div className="mt-3 space-y-2 text-xs text-[#1A1A1E]/65">
                         <p><span className="text-[#1A1A1E]/40">Customer:</span> {order.customerName || "-"} {order.customerEmail ? `(${order.customerEmail})` : ""}</p>
                         {order.briefScope && <p><span className="text-[#1A1A1E]/40">Brief:</span> {order.briefScope}</p>}
                         <p><span className="text-[#1A1A1E]/40">Waktu:</span> {new Date(order.createdAt).toLocaleString("id-ID")}</p>
                         {order.promoCode && <p><span className="text-[#1A1A1E]/40">Promo:</span> <span className="font-mono text-[#0038FF]">{order.promoCode}</span></p>}
-                        {order.deliverables?.length ? <p><span className="text-[#1A1A1E]/40">File project:</span> {order.deliverables.map((file) => file.name).join(", ")}</p> : null}
+                        {order.deliverables?.length ? <div><span className="text-[#1A1A1E]/40">File project:</span><ul className="mt-1 list-inside list-disc">{order.deliverables.map((file) => <li key={file.id}>{file.name}</li>)}</ul></div> : <p className="text-[#98a2b3]">Belum ada file project.</p>}
                       </div>
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-[#1A1A1E]/15 px-2.5 py-1.5 text-xs hover:border-[#0038FF]">
-                        <Upload className="h-3.5 w-3.5" /> Upload project
-                        <input type="file" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadDeliverable(order.code, file); event.currentTarget.value = ""; }} />
+                      <label className={`inline-flex items-center gap-1.5 rounded-md border border-[#1A1A1E]/15 px-2.5 py-1.5 text-xs ${uploadingCode === order.code ? "cursor-wait opacity-60" : "cursor-pointer hover:border-[#0038FF]"}`}>
+                        <Upload className="h-3.5 w-3.5" /> {uploadingCode === order.code ? "Mengunggah..." : "Upload project"}
+                        <input type="file" accept={ALLOWED_FILE_ACCEPT} disabled={uploadingCode === order.code} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadDeliverable(order.code, file); event.currentTarget.value = ""; }} />
                       </label>
-                      {!!order.deliverables?.length && <button onClick={() => sendProject(order.code)} className="inline-flex items-center gap-1.5 rounded-md bg-[#0038FF] px-2.5 py-1.5 text-xs text-white hover:bg-[#0030DB]"><Send className="h-3.5 w-3.5" /> Kirim project</button>}
+                      {!!order.deliverables?.length && <button disabled={sendingCode === order.code || uploadingCode === order.code} onClick={() => sendProject(order.code)} className="inline-flex items-center gap-1.5 rounded-md bg-[#0038FF] px-2.5 py-1.5 text-xs text-white hover:bg-[#0030DB] disabled:cursor-wait disabled:opacity-50"><Send className="h-3.5 w-3.5" /> {sendingCode === order.code ? "Mengirim..." : "Kirim project"}</button>}
                       {order.projectSentAt && <span className="text-xs text-green-700">Terkirim</span>}
                       </div>
+                      {orderActionMessage[order.code] && <p className="mt-2 text-xs text-[#667085]" role="status">{orderActionMessage[order.code]}</p>}
                     </details>
                   </div>
                 );

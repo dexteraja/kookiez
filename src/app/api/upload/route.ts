@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth-helpers";
-import { isAllowedFile, storeFile } from "@/lib/file-storage";
+import { storeFile } from "@/lib/file-storage";
+import { isAllowedFile } from "@/lib/file-constraints";
 
 export async function POST(req: NextRequest) {
   const access = await requireUser();
