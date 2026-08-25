@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, type FormEvent } from "react"
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Topography from './components/TopographyBG';
+import Topography from '@/components/TopographyBG';
 import {
   ArrowLeft, LogOut, Plus, Minus, Volume2, VolumeX,
   Clock, Loader2, CheckCircle2, Eye, X, Upload, Send, AlertTriangle,
