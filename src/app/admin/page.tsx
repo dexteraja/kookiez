@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, type FormEvent } from "react"
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Topography from './components/TopographyBG';
 import {
   ArrowLeft, LogOut, Plus, Minus, Volume2, VolumeX,
   Clock, Loader2, CheckCircle2, Eye, X, Upload, Send, AlertTriangle,
@@ -403,6 +404,29 @@ export default function AdminPage() {
   return (
     <div className="admin-shell ui-shell min-h-screen text-[#17191f]">
       <div className="max-w-5xl mx-auto px-6 py-12">
+        <Topography
+    lowColor="#3B82F6"
+    midColor="#ffffff"
+    highColor="#FFFFFF"
+    speed={0.35}
+    morphAmount={3}
+    morphSpeed={0.05}
+    bands={2}
+    thickness={0.01}
+    scale={2}
+    pixelSize={1}
+    glow={0.5}
+    colorMode="elevation"
+    contrast={3}
+    brightness={1}
+    fillBands={false}
+    opacity={1}
+    grain
+    grainIntensity={0.05}
+    mouseInteraction
+    mouseRadius={0.3}
+    mouseStrength={0.4}
+  />
         <div className="flex items-center justify-between mb-6">
           <Link
             href="/"
