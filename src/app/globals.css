@@ -12,9 +12,9 @@
   --line: rgba(17, 24, 39, 0.12);
   --accent: #0038ff;
   --accent-soft: rgba(0, 56, 255, 0.07);
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
---font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
---font-mono: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --font-display: "Avenir Next", "Century Gothic", "Trebuchet MS", sans-serif;
+  --font-body: "Avenir Next", "Helvetica Neue", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 html {
