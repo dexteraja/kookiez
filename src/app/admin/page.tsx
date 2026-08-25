@@ -404,9 +404,9 @@ export default function AdminPage() {
   return (
     <div className="admin-shell ui-shell min-h-screen text-[#17191f] relative z-10">
   <Topography
-    lowColor="#3B82F6"
-    midColor="#ffffff"
-    highColor="#FFFFFF"
+    lowColor="#94A3B8"
+    midColor="#CBD5E1"
+    highColor="#F8FAFC"
     speed={0.35}
     morphAmount={3}
     morphSpeed={0.05}
@@ -416,10 +416,10 @@ export default function AdminPage() {
     pixelSize={1}
     glow={0.5}
     colorMode="elevation"
-    contrast={3}
+    contrast={2}
     brightness={1}
     fillBands={false}
-    opacity={1}
+    opacity={0.4}
     grain
     grainIntensity={0.05}
     mouseInteraction
