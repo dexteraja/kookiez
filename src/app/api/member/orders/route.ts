@@ -16,6 +16,7 @@ export async function GET() {
       plan: 1, method: 1, amount: 1, isCustom: 1, paymentRoute: 1,
       paymentStatus: 1, queuePosition: 1, createdAt: 1, updatedAt: 1,
       deliverables: 1, revisionRequests: 1, events: 1, fileUrls: 1,
+      dpAmount: 1, remainingAmount: 1, paidAmount: 1, paymentHistory: 1,
     }).toArray();
     return NextResponse.json({ orders });
   } catch {

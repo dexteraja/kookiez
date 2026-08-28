@@ -79,3 +79,8 @@ export type SiteSettingsInput = z.infer<typeof SiteSettingsSchema>;
 export const TrackOrderSchema = z.object({
   code: z.string().min(1, "Order code is required"),
 });
+
+export const PaymentActionSchema = z.object({
+  action: z.enum(["confirm_dp", "confirm_full", "confirm_settlement", "reject"]),
+  note: z.string().trim().max(500).optional().default(""),
+});

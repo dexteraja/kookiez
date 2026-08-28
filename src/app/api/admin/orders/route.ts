@@ -58,6 +58,11 @@ export async function GET() {
         fileUrls: o.fileUrls ?? [],
         deliverables: o.deliverables ?? [],
         projectSentAt: o.projectSentAt ?? null,
+        paymentStatus: o.paymentStatus ?? "pending",
+        dpAmount: o.dpAmount ?? null,
+        remainingAmount: o.remainingAmount ?? null,
+        paidAmount: o.paidAmount ?? 0,
+        paymentHistory: o.paymentHistory ?? [],
       })),
     });
   } catch (error) {

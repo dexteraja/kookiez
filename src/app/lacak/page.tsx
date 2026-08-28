@@ -23,6 +23,10 @@ interface OrderDetail {
   briefScope: string;
   briefRefs: string;
   fileNames: string[];
+  paymentStatus?: string;
+  dpAmount?: number | null;
+  remainingAmount?: number | null;
+  paidAmount?: number;
   createdAt: string;
   queuePosition: number | null;
   maxSlots: number;
@@ -39,6 +43,16 @@ function statusMeta(status: OrderStatus, t: (k: any) => string) {
   } as const;
   return map[status];
 }
+
+const paymentStatusLabels: Record<string, { label: string; color: string; bg: string }> = {
+  dp_pending: { label: "Menunggu DP", color: "#B58900", bg: "#B5890015" },
+  dp_paid: { label: "DP Diterima", color: "#0038FF", bg: "#0038FF15" },
+  settlement_pending: { label: "Menunggu Pelunasan", color: "#D97706", bg: "#D9770615" },
+  pending: { label: "Menunggu Bayar", color: "#B58900", bg: "#B5890015" },
+  paid: { label: "Lunas", color: "#16A34A", bg: "#16A34A15" },
+  rejected: { label: "Ditolak", color: "#DC2626", bg: "#DC262615" },
+  manual_contact_required: { label: "Menunggu Bayar", color: "#B58900", bg: "#B5890015" },
+};
 
 function formatIDR(n: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -85,38 +99,49 @@ function TrackContent() {
   useEffect(() => {
     if (!order?.code) return;
 
-    const es = new EventSource("/api/queue/stream");
-    eventSourceRef.current = es;
+    let es: EventSource | undefined;
+    try {
+      es = new EventSource("/api/queue/stream");
+      eventSourceRef.current = es;
 
-    es.addEventListener("order_status", (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (data.code === order.code) {
+      es.addEventListener("order_status", (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.code === order.code) {
+            setOrder((prev) =>
+              prev ? { ...prev, status: data.status } : prev
+            );
+          }
+        } catch {}
+      });
+
+      es.addEventListener("queue_update", (e) => {
+        try {
+          const data = JSON.parse(e.data);
           setOrder((prev) =>
-            prev ? { ...prev, status: data.status } : prev
+            prev
+              ? {
+                  ...prev,
+                  maxSlots: data.maxSlots,
+                  activeSlots: data.activeSlots,
+                  availableSlots: data.availableSlots,
+                }
+              : prev
           );
-        }
-      } catch {}
-    });
+        } catch {}
+      });
 
-    es.addEventListener("queue_update", (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        setOrder((prev) =>
-          prev
-            ? {
-                ...prev,
-                maxSlots: data.maxSlots,
-                activeSlots: data.activeSlots,
-                availableSlots: data.availableSlots,
-              }
-            : prev
-        );
-      } catch {}
-    });
+      es.onerror = () => {
+        // Silently close - SSE may not be available for non-admin users
+        es?.close();
+        eventSourceRef.current = null;
+      };
+    } catch {
+      // SSE not available, skip live updates
+    }
 
     return () => {
-      es.close();
+      if (es) es.close();
       eventSourceRef.current = null;
     };
   }, [order?.code]);
@@ -198,6 +223,21 @@ function TrackContent() {
               </span>
             </div>
 
+            {/* Payment Status */}
+            {order.paymentStatus && (
+              <div className="px-6 py-3 border-b border-[#1A1A1E]/10 flex items-center justify-between">
+                <span className="text-[10px] font-mono tracking-widest text-[#1A1A1E]/40">PEMBAYARAN</span>
+                {(() => {
+                  const pm = paymentStatusLabels[order.paymentStatus] ?? paymentStatusLabels.pending;
+                  return (
+                    <span className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full" style={{ color: pm.color, backgroundColor: pm.bg }}>
+                      {pm.label}
+                    </span>
+                  );
+                })()}
+              </div>
+            )}
+
             {/* Queue Position Card */}
             {order.queuePosition !== null && order.status !== "done" && (
               <div className="p-6 border-b border-[#1A1A1E]/10 bg-[#0038FF]/[0.02]">
@@ -249,6 +289,15 @@ function TrackContent() {
               />
               {!order.isCustom && order.amount != null && (
                 <Row label={t("step4_total")} value={formatIDR(order.amount)} />
+              )}
+              {order.dpAmount != null && (
+                <Row label="DP (30%)" value={formatIDR(order.dpAmount)} />
+              )}
+              {order.remainingAmount != null && order.remainingAmount > 0 && (
+                <Row label="Sisa" value={formatIDR(order.remainingAmount)} />
+              )}
+              {(order.paidAmount ?? 0) > 0 && (
+                <Row label="Terbayar" value={formatIDR(order.paidAmount ?? 0)} />
               )}
             </div>
           </div>

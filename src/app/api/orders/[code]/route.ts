@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
-import { requireUser } from "@/lib/auth-helpers";
+import { getCurrentUser } from "@/lib/auth-helpers";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    const access = await requireUser();
-    if ("response" in access) return access.response;
+    const user = await getCurrentUser();
     const { code } = await params;
     const { db } = await connectToDatabase();
 
@@ -17,9 +16,10 @@ export async function GET(
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
-    if (order.userId !== access.user.id && access.user.role !== "admin") {
-      return NextResponse.json({ error: "Anda tidak memiliki akses ke order ini." }, { status: 403 });
-    }
+
+    const isOwner = user ? (order.userId === user.id || order.customerEmail === user.email) : false;
+    const isAdmin = user?.role === "admin";
+    const hasFullAccess = isOwner || isAdmin;
 
     const activeOrders = await db
       .collection("orders")
@@ -37,12 +37,28 @@ export async function GET(
     const settings = await db.collection("queue_settings").findOne({ key: "global" });
     const maxSlots = settings?.maxSlots ?? 9;
 
-    return NextResponse.json({
+    const baseResponse = {
       code: order.code,
       status: order.status,
       service: order.service,
       budgetLabel: order.budgetLabel,
       deadline: order.deadline,
+      queuePosition: position,
+      maxSlots,
+      activeSlots: activeOrders.length,
+      availableSlots: Math.max(0, maxSlots - activeOrders.length),
+      paymentStatus: order.paymentStatus ?? "pending",
+      dpAmount: order.dpAmount ?? null,
+      remainingAmount: order.remainingAmount ?? null,
+      paidAmount: order.paidAmount ?? 0,
+    };
+
+    if (!hasFullAccess) {
+      return NextResponse.json(baseResponse);
+    }
+
+    return NextResponse.json({
+      ...baseResponse,
       plan: order.plan,
       method: order.method,
       amount: order.amount,
@@ -54,10 +70,7 @@ export async function GET(
       fileUrls: order.fileUrls ?? [],
       deliverables: order.deliverables ?? [],
       createdAt: order.createdAt,
-      queuePosition: position,
-      maxSlots,
-      activeSlots: activeOrders.length,
-      availableSlots: Math.max(0, maxSlots - activeOrders.length),
+      paymentHistory: order.paymentHistory ?? [],
     });
   } catch (error) {
     console.error("GET /api/orders/[code] error:", error);

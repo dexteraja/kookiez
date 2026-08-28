@@ -38,6 +38,11 @@ interface OrderData {
   queuePosition: number | null;
   createdAt: string;
   customerEmail: string | null;
+  paymentStatus?: string;
+  dpAmount?: number | null;
+  remainingAmount?: number | null;
+  paidAmount?: number;
+  paymentHistory?: Array<{ id: string; action: string; amount: number | null; note: string; actor: string; createdAt: string }>;
 }
 
 interface QueueInfo {
@@ -56,6 +61,23 @@ function statusMeta(status: OrderStatus, t: (k: any) => string) {
   } as const;
   return map[status];
 }
+
+const paymentLabels: Record<string, { label: string; color: string; bg: string }> = {
+  dp_pending: { label: "Menunggu DP", color: "#B58900", bg: "#B5890015" },
+  dp_paid: { label: "DP Diterima", color: "#0038FF", bg: "#0038FF15" },
+  settlement_pending: { label: "Menunggu Pelunasan", color: "#D97706", bg: "#D9770615" },
+  pending: { label: "Menunggu Bayar", color: "#B58900", bg: "#B5890015" },
+  paid: { label: "Lunas", color: "#16A34A", bg: "#16A34A15" },
+  rejected: { label: "Ditolak", color: "#DC2626", bg: "#DC262615" },
+  manual_contact_required: { label: "Menunggu Bayar", color: "#B58900", bg: "#B5890015" },
+};
+
+const paymentActionLabels: Record<string, string> = {
+  confirm_dp: "DP Dikonfirmasi",
+  confirm_full: "Pembayaran Dikonfirmasi",
+  confirm_settlement: "Pelunasan Dikonfirmasi",
+  reject: "Pembayaran Ditolak",
+};
 
 export default function AdminPage() {
   const { t } = useLang();
@@ -332,6 +354,24 @@ export default function AdminPage() {
       }
     } catch (err) {
       console.error("Failed to update status:", err);
+    }
+  };
+
+  const confirmPayment = async (code: string, action: string) => {
+    const note = action === "reject" ? window.prompt("Alasan penolakan (opsional):") ?? "" : "";
+    setOrderActionMessage((current) => ({ ...current, [code]: "Memproses pembayaran..." }));
+    try {
+      const res = await fetch(`/api/admin/orders/${code}/payment`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, note }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal memproses pembayaran.");
+      await fetchAdminData();
+      setOrderActionMessage((current) => ({ ...current, [code]: "Status pembayaran diperbarui." }));
+    } catch (error) {
+      setOrderActionMessage((current) => ({ ...current, [code]: error instanceof Error ? error.message : "Gagal memproses pembayaran." }));
     }
   };
 
@@ -690,6 +730,17 @@ export default function AdminPage() {
                           />
                           {meta.label}
                         </span>
+                        {(() => {
+                          const pm = paymentLabels[order.paymentStatus ?? "pending"] ?? paymentLabels.pending;
+                          return (
+                            <span
+                              className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full"
+                              style={{ color: pm.color, backgroundColor: pm.bg }}
+                            >
+                              {pm.label}
+                            </span>
+                          );
+                        })()}
                         {order.queuePosition && (
                           <span className="text-xs font-mono text-[#1A1A1E]/40">
                             #{order.queuePosition}
@@ -731,6 +782,30 @@ export default function AdminPage() {
                         <div className="text-[#1A1A1E]/40">Bayar</div>
                         <div className="font-medium">{order.plan} · {order.method}</div>
                       </div>
+                      {order.dpAmount != null && (
+                        <div>
+                          <div className="text-[#1A1A1E]/40">DP</div>
+                          <div className="font-medium">
+                            {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(order.dpAmount)}
+                          </div>
+                        </div>
+                      )}
+                      {order.remainingAmount != null && order.remainingAmount > 0 && (
+                        <div>
+                          <div className="text-[#1A1A1E]/40">Sisa</div>
+                          <div className="font-medium">
+                            {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(order.remainingAmount)}
+                          </div>
+                        </div>
+                      )}
+                      {(order.paidAmount ?? 0) > 0 && (
+                        <div>
+                          <div className="text-[#1A1A1E]/40">Terbayar</div>
+                          <div className="font-medium text-[#16A34A]">
+                            {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(order.paidAmount ?? 0)}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <details className="mt-3 border-t border-[#1A1A1E]/8 pt-3 group">
@@ -742,7 +817,54 @@ export default function AdminPage() {
                         {order.promoCode && <p><span className="text-[#1A1A1E]/40">Promo:</span> <span className="font-mono text-[#0038FF]">{order.promoCode}</span></p>}
                         {order.deliverables?.length ? <div><span className="text-[#1A1A1E]/40">File project:</span><ul className="mt-1 list-inside list-disc">{order.deliverables.map((file) => <li key={file.id}>{file.name}</li>)}</ul></div> : <p className="text-[#98a2b3]">Belum ada file project.</p>}
                       </div>
+                      
+                      {order.paymentHistory && order.paymentHistory.length > 0 && (
+                        <div className="mt-3 border-t border-[#1A1A1E]/8 pt-3">
+                          <span className="text-[#1A1A1E]/40 text-xs font-semibold">Riwayat Pembayaran</span>
+                          <ul className="mt-1 space-y-1">
+                            {order.paymentHistory.map((ph) => (
+                              <li key={ph.id} className="text-xs text-[#1A1A1E]/65">
+                                <span className="font-medium">{paymentActionLabels[ph.action] ?? paymentLabels[ph.action]?.label ?? ph.action}</span>
+                                {ph.amount != null && <> — Rp {ph.amount.toLocaleString("id-ID")}</>}
+                                {ph.note && <> ({ph.note})</>}
+                                <span className="block text-[10px] text-[#98a2b3]">{new Date(ph.createdAt).toLocaleString("id-ID")} · {ph.actor}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
                       <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {order.paymentStatus === "dp_pending" && (
+                          <div className="flex flex-wrap items-center gap-2 mb-2 w-full">
+                            <button onClick={() => confirmPayment(order.code, "confirm_dp")} className="inline-flex items-center gap-1.5 rounded-md bg-[#16A34A] px-2.5 py-1.5 text-xs text-white hover:bg-[#15803D]">
+                              <CheckCircle2 className="h-3.5 w-3.5" /> Konfirmasi DP
+                            </button>
+                            <button onClick={() => confirmPayment(order.code, "reject")} className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50">
+                              <X className="h-3.5 w-3.5" /> Tolak
+                            </button>
+                          </div>
+                        )}
+                        {order.paymentStatus === "pending" && (
+                          <div className="flex flex-wrap items-center gap-2 mb-2 w-full">
+                            <button onClick={() => confirmPayment(order.code, "confirm_full")} className="inline-flex items-center gap-1.5 rounded-md bg-[#16A34A] px-2.5 py-1.5 text-xs text-white hover:bg-[#15803D]">
+                              <CheckCircle2 className="h-3.5 w-3.5" /> Konfirmasi Pembayaran
+                            </button>
+                            <button onClick={() => confirmPayment(order.code, "reject")} className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50">
+                              <X className="h-3.5 w-3.5" /> Tolak
+                            </button>
+                          </div>
+                        )}
+                        {order.paymentStatus === "settlement_pending" && (
+                          <div className="flex flex-wrap items-center gap-2 mb-2 w-full">
+                            <button onClick={() => confirmPayment(order.code, "confirm_settlement")} className="inline-flex items-center gap-1.5 rounded-md bg-[#16A34A] px-2.5 py-1.5 text-xs text-white hover:bg-[#15803D]">
+                              <CheckCircle2 className="h-3.5 w-3.5" /> Konfirmasi Pelunasan
+                            </button>
+                            <button onClick={() => confirmPayment(order.code, "reject")} className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50">
+                              <X className="h-3.5 w-3.5" /> Tolak
+                            </button>
+                          </div>
+                        )}
                       <label className={`inline-flex items-center gap-1.5 rounded-md border border-[#1A1A1E]/15 px-2.5 py-1.5 text-xs ${uploadingCode === order.code ? "cursor-wait opacity-60" : "cursor-pointer hover:border-[#0038FF]"}`}>
                         <Upload className="h-3.5 w-3.5" /> {uploadingCode === order.code ? "Mengunggah..." : "Upload project"}
                         <input type="file" accept={ALLOWED_FILE_ACCEPT} disabled={uploadingCode === order.code} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadDeliverable(order.code, file); event.currentTarget.value = ""; }} />

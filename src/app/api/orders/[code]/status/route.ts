@@ -47,6 +47,19 @@ export async function PATCH(
       await appendOrderEvent(db, result.code, { type: "status_changed", label: `Status menjadi ${status}`, actor: "admin", actorName: session.user?.name ?? undefined, metadata: { status } });
     }
 
+    // Auto-transition payment status when order is done and DP was paid
+    if (status === "done" && result.paymentStatus === "dp_paid") {
+      await db.collection("orders").updateOne(
+        { code: code.toUpperCase() },
+        { $set: { paymentStatus: "settlement_pending", updatedAt: new Date() } }
+      );
+      await appendOrderEvent(db, result.code, {
+        type: "payment_settlement_pending",
+        label: "Menunggu pelunasan sisa pembayaran",
+        actor: "system",
+      });
+    }
+
     if (result.customerEmail && previous?.status !== status) {
       sendMail({
         to: result.customerEmail,

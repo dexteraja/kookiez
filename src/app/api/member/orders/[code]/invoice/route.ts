@@ -40,8 +40,20 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
   document.fontSize(12).text(`Subtotal: Rp ${Number(order.baseAmount ?? order.amount ?? 0).toLocaleString("id-ID")}`);
   document.text(`Diskon: Rp ${Number(order.discountAmount ?? 0).toLocaleString("id-ID")}`);
   document.fontSize(15).text(`Total: ${order.finalAmount == null ? "Custom" : `Rp ${Number(order.finalAmount).toLocaleString("id-ID")}`}`);
+  
+  if (order.dpAmount != null) {
+    document.fontSize(12).text(`DP (30%): Rp ${Number(order.dpAmount).toLocaleString("id-ID")}`);
+  }
+  if (order.remainingAmount != null) {
+    document.fontSize(12).text(`Sisa Pelunasan: Rp ${Number(order.remainingAmount).toLocaleString("id-ID")}`);
+  }
+  if (order.paidAmount != null) {
+    document.fontSize(12).text(`Telah Dibayar: Rp ${Number(order.paidAmount).toLocaleString("id-ID")}`);
+  }
+
   document.moveDown();
-  document.fontSize(10).text(`Status pembayaran: ${order.paymentStatus ?? "manual confirmation"}`);
+  const statusLabels: Record<string, string> = { pending: "Menunggu Pembayaran", dp_pending: "Menunggu DP", dp_paid: "DP Dibayar", settlement_pending: "Menunggu Pelunasan", paid: "Lunas", rejected: "Ditolak", manual_contact_required: "Hubungi CS" };
+  document.fontSize(10).text(`Status pembayaran: ${statusLabels[order.paymentStatus ?? "manual_contact_required"] ?? order.paymentStatus}`);
   document.text("Invoice ini bukan bukti pembayaran lunas sebelum pembayaran terverifikasi.");
   document.end();
   const pdf = await done;
