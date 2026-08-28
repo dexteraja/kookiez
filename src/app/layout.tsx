@@ -6,6 +6,9 @@ import AuthProvider from "@/components/AuthProvider";
 export const metadata: Metadata = {
   title: "Kookiez Digital Creative",
   description: "Jasa desain grafis — logo, poster, banner, flyer, brosur, dan konsultasi desain.",
+  verification: {
+    google: "9vWk35WiU9lcLX2T3GBIgP93yzRMy8ozw2X01hbh8lI", 
+  },
 };
 
 export const viewport: Viewport = {
