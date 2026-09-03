@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { PaymentActionSchema } from "@/lib/validation";
 import { appendOrderEvent } from "@/lib/order-events";
 import { emailTemplate, sendMail } from "@/lib/mailer";
+import { sseBroadcaster } from "@/lib/sse/broadcaster";
 
 // Valid transitions
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -88,6 +89,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     actorName: access.user.name ?? undefined,
     metadata: { action, paymentAmount: String(paymentAmount ?? 0), newPaymentStatus },
   });
+  sseBroadcaster.broadcast({ type: "payment_update", data: { code, paymentStatus: newPaymentStatus } });
 
   // Send email notification
   if (order.customerEmail) {

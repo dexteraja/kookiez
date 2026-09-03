@@ -963,6 +963,7 @@ function OrderModal({
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Gagal masuk antrean");
       clearOrderDraft();
+      window.localStorage.setItem("kookiez:last-order-code", result.code);
       onSuccess({ code: result.code, service: serviceObj?.title, tier: tier?.label, deadline: budgetData.deadline, plan: orderState.plan, method: orderState.method, amount, isCustom, paymentRoute: result.paymentRoute, whatsappUrl: result.whatsappUrl });
       if (result.paymentRoute === "whatsapp_fallback" && result.whatsappUrl) {
         const popup = window.open(result.whatsappUrl, "_blank", "noopener,noreferrer");

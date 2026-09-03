@@ -1,5 +1,5 @@
 export type SSEEvent = {
-  type: "queue_update" | "order_status" | "slot_update" | "new_order";
+  type: "queue_update" | "order_status" | "slot_update" | "new_order" | "payment_update" | "message_new";
   data: Record<string, unknown>;
 };
 

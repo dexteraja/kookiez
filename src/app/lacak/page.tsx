@@ -74,7 +74,9 @@ function TrackContent() {
     if (!orderCode.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/orders/${encodeURIComponent(orderCode.trim().toUpperCase())}`);
+      const normalizedCode = orderCode.trim().toUpperCase();
+      window.localStorage.setItem("kookiez:last-order-code", normalizedCode);
+      const res = await fetch(`/api/orders/${encodeURIComponent(normalizedCode)}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setOrder(data);
@@ -89,7 +91,7 @@ function TrackContent() {
   }, []);
 
   useEffect(() => {
-    const codeParam = params.get("code");
+    const codeParam = params.get("code") ?? window.localStorage.getItem("kookiez:last-order-code");
     if (codeParam) {
       setCode(codeParam);
       fetchOrder(codeParam);

@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       if (existing) {
         return NextResponse.json({
           code: existing.code,
-          paymentRoute: existing.paymentRoute ?? (siteSettings.onlinePaymentEnabled ? "online_pending" : "whatsapp_fallback"),
+          paymentRoute: existing.paymentRoute ?? "whatsapp_fallback",
           whatsappUrl: existing.whatsappUrl,
           queuePosition: existing.queuePosition,
           activeSlots: activeCount,
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
       fileNames: data.fileNames,
       fileUrls: data.fileUrls,
       status: "pending",
-      paymentRoute: siteSettings.onlinePaymentEnabled ? "online_pending" : "whatsapp_fallback",
+      paymentRoute: "whatsapp_fallback",
       paymentStatus: data.plan === "deposit" ? "dp_pending" : "pending",
       queuePosition,
       customerEmail: data.customerEmail,
@@ -205,7 +205,7 @@ export async function POST(req: NextRequest) {
         availableSlots: Math.max(0, maxSlots - updatedActiveCount),
         maxSlots,
         paymentRoute: orderDoc.paymentRoute,
-        whatsappUrl: orderDoc.paymentRoute === "whatsapp_fallback" ? whatsappUrl : undefined,
+        whatsappUrl,
       },
     });
 
@@ -217,7 +217,7 @@ export async function POST(req: NextRequest) {
         availableSlots: Math.max(0, maxSlots - updatedActiveCount),
         maxSlots,
         paymentRoute: orderDoc.paymentRoute,
-        whatsappUrl: orderDoc.paymentRoute === "whatsapp_fallback" ? whatsappUrl : undefined,
+        whatsappUrl,
       },
       { status: 201 }
     );

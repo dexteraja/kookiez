@@ -57,6 +57,8 @@ export default function MemberPage() {
   const [chatMessages, setChatMessages] = useState<OrderMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatStatus, setChatStatus] = useState("");
+  const [paymentNote, setPaymentNote] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
 
   const submitRevision = async (code: string) => {
     setRevisionStatus("Mengirim...");
@@ -92,6 +94,25 @@ export default function MemberPage() {
     if (response.ok) { setChatMessages((current) => [...current, data.message]); setChatInput(""); setChatStatus(""); } else setChatStatus(data.error || "Pesan gagal dikirim.");
   };
 
+  const submitPayment = async (code: string, action: "submit_dp" | "submit_full" | "submit_settlement") => {
+    if (!paymentNote.trim()) {
+      setPaymentStatus("Tulis keterangan pembayaran terlebih dahulu.");
+      return;
+    }
+    setPaymentStatus("Mengirim konfirmasi...");
+    const response = await fetch(`/api/member/orders/${encodeURIComponent(code)}/payment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, note: paymentNote }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setPaymentStatus(response.ok ? "Konfirmasi terkirim. Menunggu verifikasi admin." : data.error || "Konfirmasi gagal dikirim.");
+    if (response.ok) {
+      setPaymentNote("");
+      setOrders((current) => current.map((item) => item.code === code ? { ...item, paymentHistory: [...(item.paymentHistory ?? []), data.submission] } : item));
+    }
+  };
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/login");
@@ -103,6 +124,25 @@ export default function MemberPage() {
       .then((data) => setOrders(data.orders ?? []))
       .finally(() => setLoading(false));
   }, [router, status]);
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const eventSource = new EventSource("/api/queue/stream");
+    const refreshForOrder = (event: MessageEvent<string>) => {
+      try {
+        const data = JSON.parse(event.data) as { code?: string };
+        if (!data.code || !orders.some((order) => order.code === data.code)) return;
+        fetch("/api/member/orders", { cache: "no-store" })
+          .then((response) => response.json())
+          .then((payload) => setOrders(payload.orders ?? []))
+          .catch(() => {});
+      } catch {}
+    };
+    eventSource.addEventListener("order_status", refreshForOrder);
+    eventSource.addEventListener("payment_update", refreshForOrder);
+    eventSource.onerror = () => eventSource.close();
+    return () => eventSource.close();
+  }, [orders, status]);
 
   if (status === "loading" || !session) return null;
 
@@ -123,6 +163,7 @@ export default function MemberPage() {
             <article key={order.code} className="border-b border-black/[.08] p-5 last:border-0 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-xs font-semibold tracking-[.08em] text-[#0038FF]">{order.code}</p><h2 className="mt-1 font-heading text-lg font-semibold">{order.service}</h2></div><span className="rounded-full bg-[#0038FF]/[.07] px-2.5 py-1 font-mono text-[11px] text-[#0038FF]">{statusLabels[order.status] ?? order.status}</span></div>
               <div className="mt-5 grid gap-3 border-y border-black/[.07] py-3 text-sm text-[#667085] sm:grid-cols-3"><span><small className="block text-[10px] uppercase tracking-[.12em] text-[#98a2b3]">Paket</small>{order.budgetLabel || "Custom"}</span><span><small className="block text-[10px] uppercase tracking-[.12em] text-[#98a2b3]">Deadline</small>{order.deadline || "Fleksibel"}</span><span><small className="block text-[10px] uppercase tracking-[.12em] text-[#98a2b3]">Pembayaran</small>{(() => { const pm = paymentStatusLabels[order.paymentStatus ?? "pending"] ?? paymentStatusLabels.pending; return (<span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full mt-1" style={{ color: pm.color, backgroundColor: pm.bg }}>{pm.label}</span>); })()}</span></div>
+              {(["dp_pending", "pending", "settlement_pending"].includes(order.paymentStatus ?? "pending")) && <div className="mt-4 rounded-lg border border-[#0038FF]/15 bg-[#0038FF]/[.03] p-4"><div className="text-[10px] font-semibold uppercase tracking-[.12em] text-[#667085]">Konfirmasi pembayaran manual</div><p className="mt-1 text-xs text-[#667085]">Transfer atau QRIS sesuai arahan admin, lalu kirim keterangan agar pembayaran bisa diverifikasi.</p><input value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} maxLength={500} className="ui-input mt-3 w-full px-3 py-2 text-sm" placeholder="Contoh: transfer BCA dari rekening Andi, 03/09 14:20" /><div className="mt-3 flex flex-wrap gap-2">{order.paymentStatus === "dp_pending" && <button onClick={() => submitPayment(order.code, "submit_dp")} className="ui-action rounded-lg bg-[#0038FF] px-3 py-2 text-xs font-medium text-white">Kirim konfirmasi DP</button>}{order.paymentStatus === "pending" && <button onClick={() => submitPayment(order.code, "submit_full")} className="ui-action rounded-lg bg-[#0038FF] px-3 py-2 text-xs font-medium text-white">Kirim konfirmasi pembayaran</button>}{order.paymentStatus === "settlement_pending" && <button onClick={() => submitPayment(order.code, "submit_settlement")} className="ui-action rounded-lg bg-[#0038FF] px-3 py-2 text-xs font-medium text-white">Kirim konfirmasi pelunasan</button>}</div>{paymentStatus && <p className="mt-2 text-xs text-[#667085]" role="status">{paymentStatus}</p>}</div>}
               {/* Payment Info */}
               {(order.dpAmount != null || (order.paidAmount ?? 0) > 0 || order.paymentStatus === "settlement_pending") && <div className="mt-4 rounded-lg border border-black/[.07] bg-[#f8fafc] p-4"><div className="text-[10px] font-semibold uppercase tracking-[.12em] text-[#667085] mb-2">Info Pembayaran</div><div className="grid gap-2 text-sm sm:grid-cols-3">{order.amount != null && <div><span className="text-xs text-[#98a2b3]">Total</span><p className="font-medium">{formatIDR(order.amount)}</p></div>}{order.dpAmount != null && <div><span className="text-xs text-[#98a2b3]">DP (30%)</span><p className="font-medium">{formatIDR(order.dpAmount)}</p></div>}{order.remainingAmount != null && order.remainingAmount > 0 && <div><span className="text-xs text-[#98a2b3]">Sisa</span><p className="font-medium">{formatIDR(order.remainingAmount)}</p></div>}{(order.paidAmount ?? 0) > 0 && <div><span className="text-xs text-[#98a2b3]">Terbayar</span><p className="font-medium text-[#16A34A]">{formatIDR(order.paidAmount ?? 0)}</p></div>}</div>{order.paymentStatus === "settlement_pending" && <div className="mt-3 rounded-lg border border-[#D97706]/20 bg-[#D97706]/5 p-3"><p className="text-xs font-medium text-[#D97706]">Sisa pembayaran perlu dilunasi</p><p className="mt-1 text-xs text-[#667085]">Silakan hubungi Kookiez via WhatsApp untuk melunasi sisa pembayaran sebesar {order.remainingAmount ? formatIDR(order.remainingAmount) : "-"}.</p></div>}{order.paymentHistory && order.paymentHistory.length > 0 && <div className="mt-3 border-t border-black/[.07] pt-3"><div className="text-[10px] font-semibold uppercase tracking-[.12em] text-[#667085] mb-1">Riwayat Pembayaran</div><ul className="space-y-1">{order.paymentHistory.map((ph) => { const actionLabels: Record<string, string> = { confirm_dp: "DP Dikonfirmasi", confirm_full: "Pembayaran Dikonfirmasi", confirm_settlement: "Pelunasan Dikonfirmasi", reject: "Ditolak" }; return <li key={ph.id} className="text-xs text-[#667085]"><span className="font-medium text-[#17191f]">{actionLabels[ph.action] ?? ph.action}</span>{ph.amount != null && <> — {formatIDR(ph.amount)}</>}{ph.note && <> ({ph.note})</>}<span className="block text-[10px] text-[#98a2b3]">{formatDate(ph.createdAt)}</span></li>; })}</ul></div>}</div>}
               <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2"><Link href={`/lacak?code=${encodeURIComponent(order.code)}`} className="ui-action text-sm font-medium text-[#0038FF] hover:underline">Lacak pesanan</Link><a href={`/api/member/orders/${encodeURIComponent(order.code)}/invoice`} className="ui-action text-sm font-medium text-[#667085] hover:text-[#0038FF]">Download invoice</a><button onClick={() => openChat(order.code)} className="ui-action inline-flex items-center gap-1.5 text-sm font-medium text-[#667085] hover:text-[#0038FF]"><MessageCircle className="h-3.5 w-3.5" />Chat Kookiez</button>{["progress", "review"].includes(order.status) && <button onClick={() => { setRevisionFor(revisionFor === order.code ? null : order.code); setRevisionStatus(""); }} className="ui-action text-sm font-medium text-[#667085] hover:text-[#0038FF]">Ajukan revisi</button>}</div>
