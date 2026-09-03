@@ -42,7 +42,7 @@ interface OrderData {
   dpAmount?: number | null;
   remainingAmount?: number | null;
   paidAmount?: number;
-  paymentHistory?: Array<{ id: string; action: string; amount: number | null; note: string; actor: string; createdAt: string }>;
+  paymentHistory?: Array<{ id: string; action: string; amount: number | null; note: string; actor: string; createdAt: string; proofId?: string }>;
 }
 
 interface QueueInfo {
@@ -73,6 +73,9 @@ const paymentLabels: Record<string, { label: string; color: string; bg: string }
 };
 
 const paymentActionLabels: Record<string, string> = {
+  submit_dp: "Pengajuan DP",
+  submit_full: "Pengajuan pembayaran",
+  submit_settlement: "Pengajuan pelunasan",
   confirm_dp: "DP Dikonfirmasi",
   confirm_full: "Pembayaran Dikonfirmasi",
   confirm_settlement: "Pelunasan Dikonfirmasi",
@@ -828,6 +831,7 @@ export default function AdminPage() {
                                 <span className="font-medium">{paymentActionLabels[ph.action] ?? paymentLabels[ph.action]?.label ?? ph.action}</span>
                                 {ph.amount != null && <> — Rp {ph.amount.toLocaleString("id-ID")}</>}
                                 {ph.note && <> ({ph.note})</>}
+                                {ph.proofId && <a href={`/api/files/${ph.proofId}`} target="_blank" rel="noreferrer" className="ml-2 text-[#0038FF] underline">Lihat bukti</a>}
                                 <span className="block text-[10px] text-[#98a2b3]">{new Date(ph.createdAt).toLocaleString("id-ID")} · {ph.actor}</span>
                               </li>
                             ))}
@@ -842,7 +846,7 @@ export default function AdminPage() {
                               <CheckCircle2 className="h-3.5 w-3.5" /> Konfirmasi DP
                             </button>
                             <button onClick={() => confirmPayment(order.code, "reject")} className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50">
-                              <X className="h-3.5 w-3.5" /> Tolak
+                              <X className="h-3.5 w-3.5" /> Batalkan
                             </button>
                           </div>
                         )}
@@ -852,7 +856,7 @@ export default function AdminPage() {
                               <CheckCircle2 className="h-3.5 w-3.5" /> Konfirmasi Pembayaran
                             </button>
                             <button onClick={() => confirmPayment(order.code, "reject")} className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50">
-                              <X className="h-3.5 w-3.5" /> Tolak
+                              <X className="h-3.5 w-3.5" /> Batalkan
                             </button>
                           </div>
                         )}
@@ -862,7 +866,7 @@ export default function AdminPage() {
                               <CheckCircle2 className="h-3.5 w-3.5" /> Konfirmasi Pelunasan
                             </button>
                             <button onClick={() => confirmPayment(order.code, "reject")} className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50">
-                              <X className="h-3.5 w-3.5" /> Tolak
+                              <X className="h-3.5 w-3.5" /> Batalkan
                             </button>
                           </div>
                         )}

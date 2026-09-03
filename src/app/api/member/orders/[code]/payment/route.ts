@@ -6,10 +6,12 @@ import { appendOrderEvent } from "@/lib/order-events";
 import { sseBroadcaster } from "@/lib/sse/broadcaster";
 import { enforceRateLimit, hasBodyWithinLimit } from "@/lib/security";
 import { orderOwnerFilter } from "@/lib/order-access";
+import { ObjectId } from "mongodb";
 
 const PaymentSubmissionSchema = z.object({
   action: z.enum(["submit_dp", "submit_full", "submit_settlement"]),
   note: z.string().trim().min(1, "Catatan pembayaran wajib diisi.").max(500),
+  proofId: z.string().regex(/^[a-f\d]{24}$/i, "Bukti pembayaran tidak valid."),
 });
 
 const VALID_STATUSES: Record<string, string> = {
@@ -34,6 +36,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const order = await db.collection("orders").findOne({ code, ...orderOwnerFilter(access.user.id, access.user.email) });
   if (!order) return NextResponse.json({ error: "Order tidak ditemukan." }, { status: 404 });
 
+  const proof = await db.collection("files.files").findOne({ _id: new ObjectId(parsed.data.proofId), "metadata.kind": "payment_proof", "metadata.userId": access.user.id, "metadata.orderCode": code });
+  if (!proof) return NextResponse.json({ error: "Bukti pembayaran tidak ditemukan atau bukan milik order ini." }, { status: 400 });
+
   const currentStatus = order.paymentStatus ?? "pending";
   if (VALID_STATUSES[action] !== currentStatus) {
     return NextResponse.json({ error: "Order belum berada pada tahap pembayaran ini." }, { status: 409 });
@@ -47,6 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     previousStatus: currentStatus,
     newStatus: currentStatus,
     note,
+    proofId: parsed.data.proofId,
     actor: "customer",
     createdAt: now,
   };

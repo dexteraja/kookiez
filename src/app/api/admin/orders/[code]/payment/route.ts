@@ -25,7 +25,7 @@ const ACTION_LABELS: Record<string, string> = {
   confirm_dp: "DP dikonfirmasi admin",
   confirm_full: "Pembayaran penuh dikonfirmasi admin",
   confirm_settlement: "Pelunasan dikonfirmasi admin",
-  reject: "Pembayaran ditolak admin",
+  reject: "Pengajuan pembayaran dibatalkan admin",
 };
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
@@ -46,7 +46,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: `Tidak bisa melakukan "${action}" dari status "${currentPaymentStatus}".` }, { status: 409 });
   }
 
-  const newPaymentStatus = ACTION_RESULTS[action];
+  const newPaymentStatus = action === "reject" ? currentPaymentStatus : ACTION_RESULTS[action];
   const now = new Date();
 
   // Calculate paid amount
@@ -93,7 +93,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   // Send email notification
   if (order.customerEmail) {
-    const statusLabel = newPaymentStatus === "paid" ? "Lunas" : newPaymentStatus === "dp_paid" ? "DP Diterima" : newPaymentStatus === "rejected" ? "Ditolak" : newPaymentStatus;
+    const statusLabel = action === "reject" ? "Dibatalkan, silakan kirim ulang" : newPaymentStatus === "paid" ? "Lunas" : newPaymentStatus === "dp_paid" ? "DP Diterima" : newPaymentStatus;
     sendMail({
       to: order.customerEmail,
       subject: `Pembayaran order ${code} — ${statusLabel}`,
