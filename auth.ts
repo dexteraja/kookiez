@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
-import { bootstrapAdminIfNeeded, getUserByEmail, normalizeEmail, verifyUserPassword } from "@/lib/users";
+import { bootstrapAdminIfNeeded, getOrCreateOAuthUser, getUserByEmail, normalizeEmail, verifyUserPassword } from "@/lib/users";
 import { rateLimit } from "@/lib/rate-limit";
 
 /* ------------------------------------------------------------------ */
@@ -61,9 +61,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Saat baru saja berhasil login (Google atau Credentials)
       if (user) {
         const email = user.email;
-        const databaseUser = email ? await getUserByEmail(email) : null;
+        const databaseUser = email ? await getOrCreateOAuthUser(email, user.name) : null;
         token.role = ((databaseUser?.role ?? (user as { role?: Role }).role ?? "member")) as Role;
-        token.sub = user.id;
+        token.sub = databaseUser?._id ? String(databaseUser._id) : user.id;
         token.email = email;
       }
 

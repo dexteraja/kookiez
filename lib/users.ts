@@ -31,6 +31,24 @@ export async function getUserByEmail(email: string) {
   return (await usersCollection()).findOne({ email: normalizeEmail(email) });
 }
 
+export async function getOrCreateOAuthUser(email: string, name?: string | null) {
+  const users = await usersCollection();
+  const normalizedEmail = normalizeEmail(email);
+  const existing = await users.findOne({ email: normalizedEmail });
+  if (existing) return existing;
+  const now = new Date();
+  const result = await users.insertOne({
+    email: normalizedEmail,
+    name: name?.trim() || normalizedEmail.split("@")[0],
+    role: "member",
+    status: "active",
+    failedLoginCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return users.findOne({ _id: result.insertedId });
+}
+
 export async function bootstrapAdminIfNeeded() {
   const emails = (process.env.AUTH_ADMIN_EMAILS ?? "")
     .split(",")

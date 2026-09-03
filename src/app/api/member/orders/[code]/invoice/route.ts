@@ -14,7 +14,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
     code,
     $or: [
       { userId: access.user.id },
-      { userId: { $exists: false }, customerEmail: access.user.email },
+      { customerEmail: access.user.email },
     ],
   });
   if (!order) return NextResponse.json({ error: "Invoice tidak ditemukan." }, { status: 404 });

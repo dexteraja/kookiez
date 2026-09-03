@@ -10,7 +10,7 @@ export async function GET() {
   try {
     const { db } = await connectToDatabase();
     const orders = await db.collection("orders").find({
-      $or: [{ userId: access.user.id }, { userId: { $exists: false }, customerEmail: access.user.email }],
+      $or: [{ userId: access.user.id }, { customerEmail: access.user.email }],
     }).sort({ createdAt: -1 }).limit(50).project({
       _id: 0, code: 1, status: 1, service: 1, budgetLabel: 1, deadline: 1,
       plan: 1, method: 1, amount: 1, isCustom: 1, paymentRoute: 1,

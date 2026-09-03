@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth-helpers";
 import { connectToDatabase } from "@/lib/mongodb";
 import { appendOrderEvent } from "@/lib/order-events";
 import { sseBroadcaster } from "@/lib/sse/broadcaster";
+import { enforceRateLimit, hasBodyWithinLimit } from "@/lib/security";
 
 const PaymentSubmissionSchema = z.object({
   action: z.enum(["submit_dp", "submit_full", "submit_settlement"]),
@@ -17,6 +18,9 @@ const VALID_STATUSES: Record<string, string> = {
 };
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
+  const limited = enforceRateLimit(request, "payment-submit", 5, 15 * 60 * 1000);
+  if (limited) return limited;
+  if (!hasBodyWithinLimit(request, 8 * 1024)) return NextResponse.json({ error: "Request terlalu besar." }, { status: 413 });
   const access = await requireUser();
   if ("response" in access) return access.response;
 
@@ -26,7 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const code = (await params).code.toUpperCase();
   const { action, note } = parsed.data;
   const { db } = await connectToDatabase();
-  const order = await db.collection("orders").findOne({ code, userId: access.user.id });
+  const order = await db.collection("orders").findOne({ code, $or: [{ userId: access.user.id }, { customerEmail: access.user.email }] });
   if (!order) return NextResponse.json({ error: "Order tidak ditemukan." }, { status: 404 });
 
   const currentStatus = order.paymentStatus ?? "pending";

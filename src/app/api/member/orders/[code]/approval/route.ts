@@ -18,7 +18,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const code = (await params).code.toUpperCase();
   const { db } = await connectToDatabase();
-  const order = await db.collection("orders").findOne({ code, userId: access.user.id });
+  const order = await db.collection("orders").findOne({ code, $or: [{ userId: access.user.id }, { customerEmail: access.user.email }] });
   if (!order) return NextResponse.json({ error: "Order tidak ditemukan." }, { status: 404 });
   const deliverables = Array.isArray(order.deliverables) ? order.deliverables : [];
   const deliverable = deliverables.find((item) => String((item as { id?: string }).id) === parsed.data.deliverableId) as { id?: string; approvalStatus?: string } | undefined;

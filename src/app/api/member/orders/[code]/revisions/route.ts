@@ -12,7 +12,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!parsed.success) return NextResponse.json({ error: "Pesan revisi tidak valid." }, { status: 400 });
   const code = (await params).code.toUpperCase();
   const { db } = await connectToDatabase();
-  const order = await db.collection("orders").findOne({ code, userId: access.user.id });
+  const order = await db.collection("orders").findOne({ code, $or: [{ userId: access.user.id }, { customerEmail: access.user.email }] });
   if (!order) return NextResponse.json({ error: "Order tidak ditemukan." }, { status: 404 });
   if (!["review", "progress"].includes(String(order.status))) return NextResponse.json({ error: "Revisi belum dapat diajukan pada status ini." }, { status: 409 });
   const revision = { id: crypto.randomUUID(), message: parsed.data.message, status: "requested", createdAt: new Date(), userId: access.user.id };
