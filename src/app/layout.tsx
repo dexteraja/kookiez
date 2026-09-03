@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: "Jasa desain grafis untuk logo, poster, banner, flyer, brosur, dan konsultasi desain.",
   applicationName: "Kookiez.",
   openGraph: {
-    title: "Kookiez. Digital Creative",
+    title: "Kookiez Digital Creative",
     description: "Jasa desain grafis untuk brand, bisnis, dan kebutuhan visual kamu.",
     type: "website",
     siteName: "Kookiez.",
