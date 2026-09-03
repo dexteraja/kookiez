@@ -20,7 +20,6 @@ import {
 import { clearOrderDraft, getOrderDraft, saveOrderDraft } from "@/lib/orders";
 import { getCustomWorkItems, fetchPublishedPortfolio, PORTFOLIO_UPDATED_EVENT, type CustomWorkItem } from "@/lib/portfolio";
 import { Renderer, Camera, Transform, Mesh, Program, Box, Torus, Cylinder } from "ogl";
-import BrandMark from "@/components/BrandMark";
 
 /* ------------------------------------------------------------------ */
 /*  Konfigurasi CS WhatsApp — ganti nomor & pesan default di sini      */
@@ -1226,8 +1225,8 @@ function Navbar({ onOrder, onConsult, refs }: { onOrder: () => void; onConsult: 
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-[#1A1A1E]/10 bg-[#F1F4F8]/90 shadow-[0_8px_24px_rgba(36,55,86,.05)] backdrop-blur-xl">
       <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between px-6">
-        <button onClick={() => go(refs.home)} className="rounded-[10px] focus-visible:outline-offset-4" aria-label="Kookiez. beranda">
-          <BrandMark />
+        <button onClick={() => go(refs.home)} className="font-heading font-semibold text-lg text-[#1A1A1E]">
+          kookiez<span className="text-[#0038FF]">.</span>
         </button>
 
         <nav className="hidden items-center gap-6 text-[13px] font-medium text-[#1A1A1E]/65 md:flex lg:gap-7">

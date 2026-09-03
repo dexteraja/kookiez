@@ -10,11 +10,6 @@ export const metadata: Metadata = {
   },
   description: "Jasa desain grafis untuk logo, poster, banner, flyer, brosur, dan konsultasi desain.",
   applicationName: "Kookiez.",
-  icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    shortcut: ["/icon.svg"],
-    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
-  },
   openGraph: {
     title: "Kookiez. Digital Creative",
     description: "Jasa desain grafis untuk brand, bisnis, dan kebutuhan visual kamu.",
