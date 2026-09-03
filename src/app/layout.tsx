@@ -4,8 +4,23 @@ import { LanguageProvider } from "@/lib/i18n";
 import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "Kookiez Digital Creative",
-  description: "Jasa desain grafis — logo, poster, banner, flyer, brosur, dan konsultasi desain.",
+  title: {
+    default: "Kookiez. Digital Creative",
+    template: "%s | Kookiez.",
+  },
+  description: "Jasa desain grafis untuk logo, poster, banner, flyer, brosur, dan konsultasi desain.",
+  applicationName: "Kookiez.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: ["/icon.svg"],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
+  openGraph: {
+    title: "Kookiez. Digital Creative",
+    description: "Jasa desain grafis untuk brand, bisnis, dan kebutuhan visual kamu.",
+    type: "website",
+    siteName: "Kookiez.",
+  },
   verification: {
     google: "9vWk35WiU9lcLX2T3GBIgP93yzRMy8ozw2X01hbh8lI", 
   },

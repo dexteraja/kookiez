@@ -1,11 +1,12 @@
 import { Skeleton, SkeletonText } from "@/components/Skeleton";
+import BrandMark from "@/components/BrandMark";
 
 export default function Loading() {
   return (
     <div className="ui-shell min-h-screen">
       {/* Navbar placeholder */}
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Skeleton className="h-5 w-24" />
+      <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between px-6">
+        <BrandMark />
         <div className="hidden md:flex items-center gap-7">
           <Skeleton className="h-3 w-14" />
           <Skeleton className="h-3 w-14" />
