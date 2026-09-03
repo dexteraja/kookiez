@@ -5,7 +5,7 @@ import AuthProvider from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
   title: {
-    default: "Kookiez. Digital Creative",
+    default: "Kookiez Digital Creative",
     template: "%s | Kookiez.",
   },
   description: "Jasa desain grafis untuk logo, poster, banner, flyer, brosur, dan konsultasi desain.",
