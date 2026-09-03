@@ -8,7 +8,7 @@ import Topography from '@/components/TopographyBG';
 import ProfileCard from '@/components/Profile'
 import {
   ArrowLeft, LogOut, Plus, Minus, Volume2, VolumeX,
-  Clock, Loader2, CheckCircle2, Eye, X, Upload, Send, AlertTriangle,
+  Clock, Loader2, CheckCircle2, Eye, X, Upload, Send, AlertTriangle, Download,
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { DEFAULT_PRICING, type PricingOverride } from "@/lib/pricing";
@@ -694,6 +694,7 @@ export default function AdminPage() {
             </h2>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               <input value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder="Cari kode, layanan, atau customer" className="min-w-0 flex-1 rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2 text-sm" />
+              <a href={`/api/admin/orders/export?search=${encodeURIComponent(orderSearch)}&status=${orderStatusFilter}`} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2 text-sm font-medium text-[#1A1A1E] hover:border-[#0038FF] hover:text-[#0038FF]"><Download className="h-4 w-4" /> Export CSV</a>
               <select value={orderStatusFilter} onChange={(event) => setOrderStatusFilter(event.target.value as "all" | OrderStatus)} className="rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2 text-sm"><option value="all">Semua status</option><option value="pending">Pending</option><option value="progress">Progress</option><option value="review">Review</option><option value="done">Selesai</option></select>
             </div>
           </div>

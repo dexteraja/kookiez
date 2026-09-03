@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth-helpers";
 import { connectToDatabase } from "@/lib/mongodb";
 import { appendOrderEvent } from "@/lib/order-events";
 import { z } from "zod";
+import { orderOwnerFilter } from "@/lib/order-access";
 
 const ApprovalSchema = z.object({
   action: z.enum(["approved", "revision_requested"]),
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const code = (await params).code.toUpperCase();
   const { db } = await connectToDatabase();
-  const order = await db.collection("orders").findOne({ code, $or: [{ userId: access.user.id }, { customerEmail: access.user.email }] });
+  const order = await db.collection("orders").findOne({ code, ...orderOwnerFilter(access.user.id, access.user.email) });
   if (!order) return NextResponse.json({ error: "Order tidak ditemukan." }, { status: 404 });
   const deliverables = Array.isArray(order.deliverables) ? order.deliverables : [];
   const deliverable = deliverables.find((item) => String((item as { id?: string }).id) === parsed.data.deliverableId) as { id?: string; approvalStatus?: string } | undefined;

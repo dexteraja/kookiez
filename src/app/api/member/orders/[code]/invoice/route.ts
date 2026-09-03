@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import { requireUser } from "@/lib/auth-helpers";
 import { connectToDatabase } from "@/lib/mongodb";
+import { orderOwnerFilter } from "@/lib/order-access";
 
 export const runtime = "nodejs";
 
@@ -10,13 +11,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
   if ("response" in access) return access.response;
   const code = (await params).code.toUpperCase();
   const { db } = await connectToDatabase();
-  const order = await db.collection("orders").findOne({
-    code,
-    $or: [
-      { userId: access.user.id },
-      { customerEmail: access.user.email },
-    ],
-  });
+  const order = await db.collection("orders").findOne({ code, ...orderOwnerFilter(access.user.id, access.user.email) });
   if (!order) return NextResponse.json({ error: "Invoice tidak ditemukan." }, { status: 404 });
 
   const document = new PDFDocument({ size: "A4", margin: 52 });

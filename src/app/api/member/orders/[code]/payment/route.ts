@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { appendOrderEvent } from "@/lib/order-events";
 import { sseBroadcaster } from "@/lib/sse/broadcaster";
 import { enforceRateLimit, hasBodyWithinLimit } from "@/lib/security";
+import { orderOwnerFilter } from "@/lib/order-access";
 
 const PaymentSubmissionSchema = z.object({
   action: z.enum(["submit_dp", "submit_full", "submit_settlement"]),
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const code = (await params).code.toUpperCase();
   const { action, note } = parsed.data;
   const { db } = await connectToDatabase();
-  const order = await db.collection("orders").findOne({ code, $or: [{ userId: access.user.id }, { customerEmail: access.user.email }] });
+  const order = await db.collection("orders").findOne({ code, ...orderOwnerFilter(access.user.id, access.user.email) });
   if (!order) return NextResponse.json({ error: "Order tidak ditemukan." }, { status: 404 });
 
   const currentStatus = order.paymentStatus ?? "pending";

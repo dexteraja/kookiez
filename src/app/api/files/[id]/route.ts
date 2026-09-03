@@ -14,8 +14,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     let ownsFile = metadata?.userId === access.user.id;
     if (metadata?.orderCode) {
       const { db } = await connectToDatabase();
-      const order = await db.collection("orders").findOne({ code: metadata.orderCode }, { projection: { userId: 1 } });
-      ownsFile = order?.userId === access.user.id;
+      const order = await db.collection("orders").findOne({ code: metadata.orderCode }, { projection: { userId: 1, customerEmail: 1 } });
+      ownsFile = order?.userId === access.user.id || order?.customerEmail === access.user.email;
     }
     if (!isAdmin && !ownsFile) return NextResponse.json({ error: "Anda tidak memiliki akses ke file ini." }, { status: 403 });
     return new NextResponse(new Uint8Array(file.body), { headers: { "Content-Type": file.contentType, "Content-Disposition": `attachment; filename="${String(file.filename).replace(/[^a-zA-Z0-9._-]/g, "_")}"` } });

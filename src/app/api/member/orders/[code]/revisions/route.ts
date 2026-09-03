@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { RevisionRequestSchema } from "@/lib/validation";
 import { emailTemplate, sendMail } from "@/lib/mailer";
 import { appendOrderEvent } from "@/lib/order-events";
+import { orderOwnerFilter } from "@/lib/order-access";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   const access = await requireUser();
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!parsed.success) return NextResponse.json({ error: "Pesan revisi tidak valid." }, { status: 400 });
   const code = (await params).code.toUpperCase();
   const { db } = await connectToDatabase();
-  const order = await db.collection("orders").findOne({ code, $or: [{ userId: access.user.id }, { customerEmail: access.user.email }] });
+  const order = await db.collection("orders").findOne({ code, ...orderOwnerFilter(access.user.id, access.user.email) });
   if (!order) return NextResponse.json({ error: "Order tidak ditemukan." }, { status: 404 });
   if (!["review", "progress"].includes(String(order.status))) return NextResponse.json({ error: "Revisi belum dapat diajukan pada status ini." }, { status: 409 });
   const revision = { id: crypto.randomUUID(), message: parsed.data.message, status: "requested", createdAt: new Date(), userId: access.user.id };
