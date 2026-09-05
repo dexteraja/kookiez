@@ -1888,6 +1888,9 @@ function WorkLightbox({ item, onClose }: { item: DisplayWorkItem | null; onClose
         <div className="p-6 overflow-y-auto">
           <span className="font-mono text-[10px] tracking-widest text-[#0038FF]">{item.tag.toUpperCase()}</span>
           <h3 className="font-heading text-xl font-semibold text-[#1A1A1E] mt-1">{item.title}</h3>
+          {item.clientName && item.clientName !== item.title && (
+            <p className="text-xs text-[#1A1A1E]/45 mt-0.5">Klien: {item.clientName}</p>
+          )}
           <p className="text-sm text-[#1A1A1E]/60 mt-2 leading-relaxed">
             {item.description || `Contoh hasil pengerjaan untuk kategori ${item.tag}.`}
           </p>
@@ -1973,7 +1976,10 @@ function WorkSection({ refProp, onOrder }: { refProp: RefObject<HTMLElement>; on
               </span>
             </div>
             <div className="p-4">
-              <span className="font-medium text-[#1A1A1E] text-sm">{w.title}</span>
+              <span className="font-medium text-[#1A1A1E] text-sm block">{w.title}</span>
+              {w.clientName && w.clientName !== w.title && (
+                <span className="text-xs text-[#1A1A1E]/45">{w.clientName}</span>
+              )}
             </div>
           </button>
         ))}
@@ -2105,4 +2111,5 @@ type DisplayWorkItem = Omit<WorkItem, "id" | "category"> & {
   category: ServiceId | "lainnya";
   image?: string;
   description?: string;
+  clientName?: string;
 };

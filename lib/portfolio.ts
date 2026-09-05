@@ -14,6 +14,7 @@ import type { ServiceId } from "./i18n";
 export interface CustomWorkItem {
   id: string;
   title: string;
+  clientName?: string;
   tag: string;
   category: ServiceId | "lainnya";
   hue: string;
@@ -115,6 +116,7 @@ export function toggleDefaultVisibility(id: number) {
 
 interface RawPortfolioJsonItem {
   id: string;
+  judul?: string;
   klien: string;
   kategori: string;
   tahun?: string;
@@ -146,7 +148,8 @@ export async function fetchPublishedPortfolio(): Promise<CustomWorkItem[]> {
     if (!Array.isArray(raw)) return [];
     return raw.map((item) => ({
       id: `json-${item.id}`,
-      title: item.klien,
+      title: item.judul?.trim() || item.klien,
+      clientName: item.klien,
       tag: item.kategori,
       category: mapKategoriToCategory(item.kategori),
       hue: item.hue && item.hue.startsWith("#") ? item.hue : "#0038FF",

@@ -52,6 +52,15 @@ interface QueueInfo {
   note: string;
 }
 
+interface PortfolioItem {
+  id: string;
+  judul: string;
+  klien: string;
+  image: string;
+  deskripsi: string;
+  createdAt: string;
+}
+
 function statusMeta(status: OrderStatus, t: (k: any) => string) {
   const map = {
     pending: { label: t("status_pending"), icon: Clock, color: "#B58900", bg: "#B5890015" },
@@ -95,8 +104,15 @@ export default function AdminPage() {
     note: "",
   });
   const [note, setNote] = useState("");
-  const [workJson, setWorkJson] = useState("[]");
+  const [workItems, setWorkItems] = useState<PortfolioItem[]>([]);
   const [workMessage, setWorkMessage] = useState("");
+  const [workError, setWorkError] = useState("");
+  const [workSaving, setWorkSaving] = useState(false);
+  const [workDeletingId, setWorkDeletingId] = useState<string | null>(null);
+  const [workForm, setWorkForm] = useState({ judul: "", klien: "", deskripsi: "" });
+  const [workImageFile, setWorkImageFile] = useState<File | null>(null);
+  const [workImagePreview, setWorkImagePreview] = useState<string | null>(null);
+  const workImageInputRef = useRef<HTMLInputElement>(null);
   const [pricing, setPricing] = useState<PricingOverride>(DEFAULT_PRICING);
   const [pricingMessage, setPricingMessage] = useState("");
   const [onlinePaymentEnabled, setOnlinePaymentEnabled] = useState(false);
@@ -197,7 +213,7 @@ export default function AdminPage() {
     if ((session?.user as { role?: string })?.role === "admin") {
       fetchAdminData();
       fetch("/api/admin/portfolio").then((res) => res.ok ? res.json() : null).then((data) => {
-        if (data) setWorkJson(JSON.stringify(data.items, null, 2));
+        if (data?.items) setWorkItems(data.items);
       }).catch(() => {});
       fetch("/api/admin/settings").then((res) => res.ok ? res.json() : null).then((data) => {
         if (!data) return;
@@ -210,16 +226,63 @@ export default function AdminPage() {
     }
   }, [session, fetchAdminData]);
 
-  const saveWorkJson = async () => {
+  const handleWorkImageChange = (file: File | null) => {
+    setWorkImageFile(file);
+    if (workImagePreview) URL.revokeObjectURL(workImagePreview);
+    setWorkImagePreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  const resetWorkForm = () => {
+    setWorkForm({ judul: "", klien: "", deskripsi: "" });
+    handleWorkImageChange(null);
+    if (workImageInputRef.current) workImageInputRef.current.value = "";
+  };
+
+  const addWorkItem = async () => {
+    setWorkError("");
+    setWorkMessage("");
+    if (!workForm.judul.trim() || !workForm.klien.trim()) {
+      setWorkError("Judul dan nama klien wajib diisi.");
+      return;
+    }
+    if (!workImageFile) {
+      setWorkError("Pilih gambar karya terlebih dahulu.");
+      return;
+    }
+    setWorkSaving(true);
     try {
-      const items = JSON.parse(workJson);
-      const res = await fetch("/api/admin/portfolio", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items }) });
+      const formData = new FormData();
+      formData.append("judul", workForm.judul.trim());
+      formData.append("klien", workForm.klien.trim());
+      formData.append("deskripsi", workForm.deskripsi.trim());
+      formData.append("image", workImageFile);
+      const res = await fetch("/api/admin/portfolio", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setWorkJson(JSON.stringify(data.items, null, 2));
-      setWorkMessage("Karya Kami tersimpan.");
+      setWorkItems(data.items);
+      setWorkMessage("Karya baru berhasil ditambahkan.");
+      resetWorkForm();
     } catch (error) {
-      setWorkMessage(error instanceof Error ? error.message : "JSON tidak valid.");
+      setWorkError(error instanceof Error ? error.message : "Gagal menambah karya.");
+    } finally {
+      setWorkSaving(false);
+    }
+  };
+
+  const deleteWorkItem = async (id: string) => {
+    setWorkError("");
+    setWorkMessage("");
+    setWorkDeletingId(id);
+    try {
+      const res = await fetch(`/api/admin/portfolio?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setWorkItems(data.items);
+      setWorkMessage("Karya berhasil dihapus.");
+    } catch (error) {
+      setWorkError(error instanceof Error ? error.message : "Gagal menghapus karya.");
+    } finally {
+      setWorkDeletingId(null);
     }
   };
 
@@ -663,13 +726,103 @@ export default function AdminPage() {
 
         <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
           <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">CONTENT CONFIG</p>
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <h2 className="font-heading text-xl font-semibold">Karya Kami</h2>
-            <button onClick={saveWorkJson} className="bg-[#0038FF] text-white rounded-lg px-4 py-2 text-sm font-medium">Simpan JSON</button>
+          <h2 className="font-heading text-xl font-semibold mb-3">Karya Kami</h2>
+          <p className="text-sm text-[#1A1A1E]/55 mb-5">Tambahkan karya baru dengan mengunggah gambar, lalu isi nama klien, judul, dan deskripsinya. Tidak perlu format JSON.</p>
+
+          {/* Form tambah karya */}
+          <div className="rounded-lg border border-[#1A1A1E]/10 bg-[#F9F9FB] p-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-[#1A1A1E]/60 mb-1.5">Gambar karya</label>
+                <div className="flex items-center gap-3">
+                  {workImagePreview ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={workImagePreview} alt="Pratinjau" className="h-20 w-20 rounded-lg object-cover border border-[#1A1A1E]/10 shrink-0" />
+                  ) : (
+                    <div className="h-20 w-20 rounded-lg border border-dashed border-[#1A1A1E]/20 flex items-center justify-center shrink-0 text-[#1A1A1E]/30">
+                      <Upload className="h-5 w-5" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <input
+                      ref={workImageInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={(e) => handleWorkImageChange(e.target.files?.[0] ?? null)}
+                      className="block w-full text-xs text-[#1A1A1E]/70 file:mr-3 file:rounded-lg file:border-0 file:bg-[#0038FF] file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-[#0038FF]/90"
+                    />
+                    <p className="mt-1 text-[11px] text-[#1A1A1E]/40">JPG, PNG, WEBP, atau GIF. Maks 4 MB.</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#1A1A1E]/60 mb-1.5">Nama klien pemesan</label>
+                <input
+                  value={workForm.klien}
+                  onChange={(e) => setWorkForm((f) => ({ ...f, klien: e.target.value }))}
+                  placeholder="cth. Warung Kopi Rindu"
+                  className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-[#0038FF]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#1A1A1E]/60 mb-1.5">Judul karya</label>
+                <input
+                  value={workForm.judul}
+                  onChange={(e) => setWorkForm((f) => ({ ...f, judul: e.target.value }))}
+                  placeholder="cth. Logo Kedai Kopi Modern"
+                  className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-[#0038FF]"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-[#1A1A1E]/60 mb-1.5">Deskripsi</label>
+                <textarea
+                  value={workForm.deskripsi}
+                  onChange={(e) => setWorkForm((f) => ({ ...f, deskripsi: e.target.value }))}
+                  rows={3}
+                  placeholder="Ceritakan singkat tentang karya ini..."
+                  className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:border-[#0038FF]"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                onClick={addWorkItem}
+                disabled={workSaving}
+                className="inline-flex items-center gap-2 bg-[#0038FF] text-white rounded-lg px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {workSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                {workSaving ? "Menyimpan..." : "Tambah Karya"}
+              </button>
+              {workError && <p className="text-sm text-red-600">{workError}</p>}
+              {!workError && workMessage && <p className="text-sm text-[#0038FF]">{workMessage}</p>}
+            </div>
           </div>
-          <p className="text-sm text-[#1A1A1E]/55 mb-4">Kelola daftar karya tanpa mengubah kode. Gunakan format array JSON dengan kolom id, klien, kategori, tahun, span, image, hue, dan deskripsi.</p>
-          <textarea value={workJson} onChange={(e) => setWorkJson(e.target.value)} rows={12} spellCheck={false} className="w-full rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] p-3 font-mono text-xs leading-relaxed focus:outline-none focus:border-[#0038FF]" aria-label="Konfigurasi Karya Kami dalam JSON" />
-          {workMessage && <p className="mt-2 text-sm text-[#0038FF]">{workMessage}</p>}
+
+          {/* Daftar karya tersimpan */}
+          {workItems.length === 0 ? (
+            <p className="text-sm text-[#1A1A1E]/40">Belum ada karya yang ditambahkan lewat form ini.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {workItems.map((item) => (
+                <div key={item.id} className="relative rounded-lg border border-[#1A1A1E]/10 overflow-hidden bg-white">
+                  <button
+                    onClick={() => deleteWorkItem(item.id)}
+                    disabled={workDeletingId === item.id}
+                    aria-label={`Hapus karya ${item.judul}`}
+                    className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/50 hover:bg-red-600 text-white flex items-center justify-center transition-colors disabled:opacity-50"
+                  >
+                    {workDeletingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                  </button>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.image} alt={item.judul} className="h-32 w-full object-cover" />
+                  <div className="p-3">
+                    <p className="text-sm font-medium text-[#1A1A1E] truncate">{item.judul}</p>
+                    <p className="text-xs text-[#1A1A1E]/45 truncate">{item.klien}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="mb-8 border border-red-200 rounded-xl p-5 bg-red-50/60">
