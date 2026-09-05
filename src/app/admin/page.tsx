@@ -52,13 +52,28 @@ interface QueueInfo {
   note: string;
 }
 
+const PORTFOLIO_CATEGORIES = [
+  { value: "logo", label: "Desain Logo" },
+  { value: "banner", label: "Banner & Spanduk" },
+  { value: "poster", label: "Poster" },
+  { value: "flyer", label: "Flyer" },
+  { value: "brosur", label: "Brosur" },
+] as const;
+type PortfolioCategory = (typeof PORTFOLIO_CATEGORIES)[number]["value"];
+
 interface PortfolioItem {
   id: string;
   judul: string;
   klien: string;
-  image: string;
+  klienSamaran: boolean;
+  kategori: PortfolioCategory;
+  imageId: string;
   deskripsi: string;
   createdAt: string;
+}
+
+function portfolioCategoryLabel(value: string) {
+  return PORTFOLIO_CATEGORIES.find((c) => c.value === value)?.label ?? value;
 }
 
 function statusMeta(status: OrderStatus, t: (k: any) => string) {
@@ -109,7 +124,13 @@ export default function AdminPage() {
   const [workError, setWorkError] = useState("");
   const [workSaving, setWorkSaving] = useState(false);
   const [workDeletingId, setWorkDeletingId] = useState<string | null>(null);
-  const [workForm, setWorkForm] = useState({ judul: "", klien: "", deskripsi: "" });
+  const [workForm, setWorkForm] = useState<{ judul: string; klien: string; deskripsi: string; kategori: PortfolioCategory; klienSamaran: boolean }>({
+    judul: "",
+    klien: "",
+    deskripsi: "",
+    kategori: "logo",
+    klienSamaran: false,
+  });
   const [workImageFile, setWorkImageFile] = useState<File | null>(null);
   const [workImagePreview, setWorkImagePreview] = useState<string | null>(null);
   const workImageInputRef = useRef<HTMLInputElement>(null);
@@ -233,7 +254,7 @@ export default function AdminPage() {
   };
 
   const resetWorkForm = () => {
-    setWorkForm({ judul: "", klien: "", deskripsi: "" });
+    setWorkForm({ judul: "", klien: "", deskripsi: "", kategori: "logo", klienSamaran: false });
     handleWorkImageChange(null);
     if (workImageInputRef.current) workImageInputRef.current.value = "";
   };
@@ -255,6 +276,8 @@ export default function AdminPage() {
       formData.append("judul", workForm.judul.trim());
       formData.append("klien", workForm.klien.trim());
       formData.append("deskripsi", workForm.deskripsi.trim());
+      formData.append("kategori", workForm.kategori);
+      formData.append("klienSamaran", String(workForm.klienSamaran));
       formData.append("image", workImageFile);
       const res = await fetch("/api/admin/portfolio", { method: "POST", body: formData });
       const data = await res.json();
@@ -763,6 +786,18 @@ export default function AdminPage() {
                   placeholder="cth. Warung Kopi Rindu"
                   className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-[#0038FF]"
                 />
+                <label className="mt-2 flex items-center gap-2 text-xs text-[#1A1A1E]/60">
+                  <input
+                    type="checkbox"
+                    checked={workForm.klienSamaran}
+                    onChange={(e) => setWorkForm((f) => ({ ...f, klienSamaran: e.target.checked }))}
+                    className="h-3.5 w-3.5 rounded border-[#1A1A1E]/30 text-[#0038FF] focus:ring-[#0038FF]"
+                  />
+                  Nama di atas adalah samaran (klien tidak ingin nama aslinya tampil publik)
+                </label>
+                {workForm.klienSamaran && (
+                  <p className="mt-1 text-[11px] text-[#1A1A1E]/40">Di halaman publik, nama klien akan diganti menjadi &quot;Klien Rahasia&quot;.</p>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-[#1A1A1E]/60 mb-1.5">Judul karya</label>
@@ -772,6 +807,16 @@ export default function AdminPage() {
                   placeholder="cth. Logo Kedai Kopi Modern"
                   className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-[#0038FF]"
                 />
+                <label className="block text-xs font-medium text-[#1A1A1E]/60 mb-1.5 mt-3">Kategori</label>
+                <select
+                  value={workForm.kategori}
+                  onChange={(e) => setWorkForm((f) => ({ ...f, kategori: e.target.value as PortfolioCategory }))}
+                  className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-[#0038FF]"
+                >
+                  {PORTFOLIO_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-[#1A1A1E]/60 mb-1.5">Deskripsi</label>
@@ -814,8 +859,18 @@ export default function AdminPage() {
                     {workDeletingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
                   </button>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.image} alt={item.judul} className="h-32 w-full object-cover" />
+                  <img src={`/api/portfolio/image/${item.imageId}`} alt={item.judul} className="h-32 w-full object-cover" />
                   <div className="p-3">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="font-mono text-[9px] tracking-widest text-[#0038FF] bg-[#0038FF]/5 border border-[#0038FF]/15 rounded-full px-2 py-0.5">
+                        {portfolioCategoryLabel(item.kategori).toUpperCase()}
+                      </span>
+                      {item.klienSamaran && (
+                        <span className="font-mono text-[9px] tracking-widest text-[#B58900] bg-[#B58900]/5 border border-[#B58900]/20 rounded-full px-2 py-0.5">
+                          SAMARAN
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm font-medium text-[#1A1A1E] truncate">{item.judul}</p>
                     <p className="text-xs text-[#1A1A1E]/45 truncate">{item.klien}</p>
                   </div>

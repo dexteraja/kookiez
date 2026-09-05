@@ -34,3 +34,30 @@ export async function readFile(fileId: string) {
   for await (const chunk of bucket.openDownloadStream(id)) chunks.push(Buffer.from(chunk));
   return { ...file, filename: String(file.filename ?? "download"), metadata: file.metadata as Record<string, string> | undefined, body: Buffer.concat(chunks), contentType: String(file.metadata?.contentType ?? "application/octet-stream") };
 }
+
+const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024;
+
+/**
+ * Simpan file gambar (dipakai untuk karya portofolio) ke GridFS.
+ * Terpisah dari storeFile() karena validasi tipe berbeda (mendukung GIF)
+ * dan tidak memerlukan userId pemilik — gambar portofolio bersifat publik.
+ */
+export async function storeImageFile(file: File, metadata: Record<string, string>): Promise<StoredFile> {
+  if (file.size > MAX_IMAGE_SIZE) throw new Error("Ukuran gambar maksimal 4 MB.");
+  if (!IMAGE_TYPES.has(file.type)) throw new Error("Format gambar harus JPG, PNG, WEBP, atau GIF.");
+  const { db } = await connectToDatabase();
+  const bucket = new GridFSBucket(db, { bucketName: "files" });
+  const id = new ObjectId();
+  const upload = bucket.openUploadStreamWithId(id, file.name, { metadata: { ...metadata, contentType: file.type || "application/octet-stream" } });
+  upload.end(Buffer.from(await file.arrayBuffer()));
+  await new Promise<void>((resolve, reject) => { upload.once("finish", () => resolve()); upload.once("error", reject); });
+  return { id: id.toHexString(), name: file.name, contentType: file.type || "application/octet-stream", size: file.size };
+}
+
+export async function deleteFile(fileId: string): Promise<void> {
+  if (!ObjectId.isValid(fileId)) return;
+  const { db } = await connectToDatabase();
+  const bucket = new GridFSBucket(db, { bucketName: "files" });
+  await bucket.delete(new ObjectId(fileId));
+}
