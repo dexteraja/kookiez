@@ -1,38 +1,54 @@
 import Link from "next/link";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="ui-shell min-h-screen text-[#1A1A1E] flex items-center justify-center px-6">
-      <div className="max-w-md w-full text-center">
-        <div className="w-16 h-16 rounded-full bg-[#0038FF]/10 flex items-center justify-center mx-auto mb-6">
-          <Search className="w-8 h-8 text-[#0038FF]" />
+    <main className="ui-shell flex min-h-screen items-center justify-center px-5 py-10 text-ink sm:px-7">
+      <div className="w-full max-w-xl">
+        <div className="mb-10 flex items-center justify-between">
+          <Link href="/" className="font-display text-xl font-semibold tracking-tight text-ink">
+            kookiez<span className="text-accent">.</span>
+          </Link>
+          <span className="stamp">Error / 404</span>
         </div>
 
-        <p className="font-mono text-xs tracking-widest text-[#0038FF] mb-3">ERROR 404</p>
-        <h1 className="font-heading text-3xl font-semibold tracking-tight mb-3">
-          Halaman tidak ditemukan
-        </h1>
-        <p className="text-sm text-[#1A1A1E]/50 mb-8 leading-relaxed">
-          Halaman yang kamu cari mungkin sudah dipindah, dihapus, atau memang belum pernah ada.
-          Yuk balik lagi ke beranda.
-        </p>
+        <div className="docket relative overflow-hidden p-6 sm:p-10">
+          <span className="crop crop-tl" />
+          <span className="crop crop-tr" />
+          <span className="crop crop-bl" />
+          <span className="crop crop-br" />
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center gap-2 bg-[#0038FF] text-white font-medium px-6 py-3 rounded-2xl hover:bg-[#0030DB] transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" /> Kembali ke Beranda
-          </Link>
-          <Link
-            href="/lacak"
-            className="inline-flex items-center justify-center gap-2 border border-[#1A1A1E]/15 text-[#1A1A1E] font-medium px-6 py-3 rounded-2xl hover:border-[#1A1A1E]/30 transition-colors"
-          >
-            Lacak Pesanan
-          </Link>
+          <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10">
+            <Search className="h-5 w-5 text-accent" />
+          </div>
+
+          <p className="kicker mb-3">Halaman tidak ditemukan</p>
+          <p className="font-mono text-[clamp(5rem,18vw,9rem)] font-medium leading-[0.8] tracking-[-0.08em] text-accent">
+            404
+          </p>
+          <h1 className="mt-5 font-display text-2xl font-semibold tracking-[-0.03em] text-ink">
+            Lembar ini tidak ada di docket.
+          </h1>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
+            Halaman yang kamu cari mungkin sudah dipindah, dihapus, atau memang belum pernah ada.
+            Kembali ke beranda atau cek status pesananmu.
+          </p>
+
+          <div className="mt-7 flex flex-col gap-2 sm:flex-row">
+            <Link href="/" className="btn btn-primary">
+              <ArrowLeft className="h-4 w-4" /> Kembali ke beranda
+            </Link>
+            <Link href="/lacak" className="btn btn-secondary">
+              Lacak pesanan <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-6 flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.12em] text-muted">
+          <span>Kookiez digital creative</span>
+          <span>Ref. 404 / not found</span>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

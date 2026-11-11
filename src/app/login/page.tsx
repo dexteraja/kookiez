@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight, Chrome, Loader2, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const [register, setRegister] = useState(false);
@@ -14,20 +14,197 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   async function submit(event: FormEvent) {
-    event.preventDefault(); setLoading(true); setError("");
+    event.preventDefault();
+    setLoading(true);
+    setError("");
     if (register) {
-      const response = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password }) });
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) { setError(data.error ?? "Pendaftaran gagal."); setLoading(false); return; }
+      if (!response.ok) {
+        setError(data.error ?? "Pendaftaran gagal.");
+        setLoading(false);
+        return;
+      }
       setLoading(false);
       window.location.href = "/login";
       return;
     }
     const result = await signIn("credentials", { email, password, redirect: false });
     setLoading(false);
-    if (result?.error) { setError("Email atau password salah."); return; }
+    if (result?.error) {
+      setError("Email atau password salah.");
+      return;
+    }
     window.location.href = "/";
   }
 
-  return <main className="flex min-h-screen items-center justify-center bg-[#F9F9FB] px-6 text-[#1A1A1E]"><div className="w-full max-w-sm"><Link href="/" className="mb-8 inline-flex items-center gap-1.5 text-sm text-[#1A1A1E]/50 hover:text-[#1A1A1E]"><ArrowLeft className="h-4 w-4" /> kookiez.</Link><h1 className="mb-2 font-heading text-3xl font-semibold">{register ? "Buat akun member" : "Masuk"}</h1><p className="mb-6 text-sm text-[#1A1A1E]/55">{register ? "Simpan progres desainmu di satu tempat." : "Lanjutkan ke workspace kookiez."}</p><button onClick={() => signIn("google", { callbackUrl: "/" })} className="mb-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#1A1A1E]/15 bg-white py-3 text-sm font-medium hover:bg-[#1A1A1E]/5">Masuk dengan Google</button><div className="my-4 flex items-center gap-3 text-xs text-[#1A1A1E]/40"><div className="h-px flex-1 bg-[#1A1A1E]/10" /> atau <div className="h-px flex-1 bg-[#1A1A1E]/10" /></div><form onSubmit={submit} className="space-y-3">{register && <div><label className="mb-2 block text-sm font-medium">Nama</label><input required value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm" placeholder="Nama kamu" /></div>}<div><label className="mb-2 block text-sm font-medium">Email</label><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm" placeholder="kamu@email.com" /></div><div><label className="mb-2 block text-sm font-medium">Password</label><input required minLength={8} type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-2xl border border-[#1A1A1E]/15 bg-white px-4 py-3 text-sm" placeholder="Minimal 8 karakter" /></div>{error && <p className="text-xs text-red-600">{error}</p>}<button disabled={loading} className="w-full rounded-2xl bg-[#0038FF] py-3 text-sm font-medium text-white disabled:opacity-50">{loading ? "Memproses..." : register ? "Daftar dan masuk" : "Masuk"}</button></form><button onClick={() => { setRegister(!register); setError(""); }} className="mt-5 w-full text-center text-sm text-[#0038FF]">{register ? "Sudah punya akun? Masuk" : "Belum punya akun? Daftar email"}</button></div></main>;
+  return (
+    <main className="ui-shell min-h-screen text-ink">
+      <div className="mx-auto grid min-h-screen max-w-page lg:grid-cols-[1fr_.9fr]">
+        <aside className="hidden flex-col justify-between border-r border-line px-8 py-10 lg:flex">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="font-display text-xl font-semibold tracking-tight text-ink">
+              kookiez<span className="text-accent">.</span>
+            </Link>
+            <span className="stamp">Member desk / 2026</span>
+          </div>
+
+          <div className="max-w-md">
+            <p className="kicker mb-3">Workspace member</p>
+            <h1 className="display text-[clamp(2.8rem,4.8vw,4.4rem)]">
+              Simpan brief,
+              <br />
+              pantau produksi.
+            </h1>
+            <p className="mt-5 max-w-sm text-sm leading-relaxed text-muted">
+              Satu tempat untuk order aktif, invoice, dan riwayat project. Masuk dengan akun yang sama saat checkout.
+            </p>
+
+            <div className="mt-8 border-t border-line pt-5">
+              {[
+                "Status order dan antrean produksi",
+                "Invoice dan riwayat pembayaran",
+                "Brief serta file referensi tersimpan",
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-2.5 border-b border-line py-3 text-sm text-ink">
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-accent" />
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted">
+            Kookiez digital creative — Indonesia
+          </p>
+        </aside>
+
+        <section className="flex flex-col justify-center px-5 py-8 sm:px-8 lg:px-12">
+          <div className="mx-auto w-full max-w-md">
+            <div className="mb-8 flex items-center justify-between lg:hidden">
+              <Link href="/" className="font-display text-xl font-semibold tracking-tight text-ink">
+                kookiez<span className="text-accent">.</span>
+              </Link>
+              <Link href="/" className="inline-flex min-h-[44px] items-center gap-1.5 text-sm text-muted">
+                <ArrowLeft className="h-4 w-4" /> Kembali
+              </Link>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="kicker mb-2">Akun</p>
+                <h2 className="display text-4xl">{register ? "Buat akun." : "Masuk."}</h2>
+              </div>
+              <span className="stamp stamp-accent">{register ? "Baru" : "Member"}</span>
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              {register ? "Simpan progres desainmu di satu tempat." : "Lanjutkan ke workspace kookiez."}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => signIn("google", { callbackUrl: "/" })}
+              className="btn btn-secondary mt-6 w-full"
+            >
+              <Chrome className="h-4 w-4" /> Masuk dengan Google
+            </button>
+
+            <div className="my-5 flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.12em] text-muted">
+              <span className="h-px flex-1 bg-line" /> atau email <span className="h-px flex-1 bg-line" />
+            </div>
+
+            <form onSubmit={submit} className="space-y-4">
+              {register && (
+                <div>
+                  <label htmlFor="login-name" className="ui-label">
+                    Nama
+                  </label>
+                  <input
+                    id="login-name"
+                    required
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    className="ui-input"
+                    placeholder="Nama kamu"
+                    autoComplete="name"
+                  />
+                </div>
+              )}
+              <div>
+                <label htmlFor="login-email" className="ui-label">
+                  Email
+                </label>
+                <input
+                  id="login-email"
+                  required
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className="ui-input"
+                  placeholder="kamu@email.com"
+                  autoComplete="email"
+                />
+              </div>
+              <div>
+                <label htmlFor="login-password" className="ui-label">
+                  Password
+                </label>
+                <input
+                  id="login-password"
+                  required
+                  minLength={8}
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="ui-input"
+                  placeholder="Minimal 8 karakter"
+                  autoComplete={register ? "new-password" : "current-password"}
+                />
+              </div>
+
+              {error && (
+                <p role="alert" className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger">
+                  {error}
+                </p>
+              )}
+
+              <button type="submit" disabled={loading} className="btn btn-primary w-full">
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Memproses
+                  </>
+                ) : (
+                  <>
+                    {register ? "Daftar" : "Masuk"} <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <p className="mt-5 text-center text-sm text-muted">
+              {register ? "Sudah punya akun?" : "Belum punya akun?"}{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setRegister((value) => !value);
+                  setError("");
+                }}
+                className="font-semibold text-accent hover:underline"
+              >
+                {register ? "Masuk" : "Daftar"}
+              </button>
+            </p>
+
+            <p className="mt-8 text-center text-xs leading-relaxed text-muted">
+              Dengan masuk, kamu menyetujui ketentuan layanan dan kebijakan privasi Kookiez.
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
 }

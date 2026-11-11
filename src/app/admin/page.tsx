@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, type FormEvent } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Topography from '@/components/TopographyBG';
-import ProfileCard from '@/components/Profile'
 import {
   ArrowLeft, LogOut, Plus, Minus, Volume2, VolumeX,
-  Clock, Loader2, CheckCircle2, Eye, X, Upload, Send, AlertTriangle, Download,
+  Clock, Loader2, CheckCircle2, Eye, X, Upload, Send, Download,
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { DEFAULT_PRICING, type PricingOverride } from "@/lib/pricing";
@@ -60,6 +58,7 @@ const PORTFOLIO_CATEGORIES = [
   { value: "brosur", label: "Brosur" },
 ] as const;
 type PortfolioCategory = (typeof PORTFOLIO_CATEGORIES)[number]["value"];
+type AdminTab = "overview" | "orders" | "pricing" | "promo" | "payments" | "queue" | "portfolio" | "settings";
 
 interface PortfolioItem {
   id: string;
@@ -76,24 +75,31 @@ function portfolioCategoryLabel(value: string) {
   return PORTFOLIO_CATEGORIES.find((c) => c.value === value)?.label ?? value;
 }
 
-function statusMeta(status: OrderStatus, t: (k: any) => string) {
+const adminStatusLabels: Record<OrderStatus, string> = {
+  pending: "Menunggu konfirmasi",
+  progress: "Sedang dikerjakan",
+  review: "Menunggu review",
+  done: "Selesai",
+};
+
+function statusMeta(status: OrderStatus) {
   const map = {
-    pending: { label: t("status_pending"), icon: Clock, color: "#B58900", bg: "#B5890015" },
-    progress: { label: t("status_progress"), icon: Loader2, color: "#0038FF", bg: "#0038FF15" },
-    review: { label: t("status_review"), icon: Eye, color: "#9333EA", bg: "#9333EA15" },
-    done: { label: t("status_done"), icon: CheckCircle2, color: "#16A34A", bg: "#16A34A15" },
+    pending: { label: adminStatusLabels.pending, icon: Clock, tone: "badge-pending" },
+    progress: { label: adminStatusLabels.progress, icon: Loader2, tone: "badge-accent" },
+    review: { label: adminStatusLabels.review, icon: Eye, tone: "badge-review" },
+    done: { label: adminStatusLabels.done, icon: CheckCircle2, tone: "badge-success" },
   } as const;
   return map[status];
 }
 
-const paymentLabels: Record<string, { label: string; color: string; bg: string }> = {
-  dp_pending: { label: "Menunggu DP", color: "#B58900", bg: "#B5890015" },
-  dp_paid: { label: "DP Diterima", color: "#0038FF", bg: "#0038FF15" },
-  settlement_pending: { label: "Menunggu Pelunasan", color: "#D97706", bg: "#D9770615" },
-  pending: { label: "Menunggu Bayar", color: "#B58900", bg: "#B5890015" },
-  paid: { label: "Lunas", color: "#16A34A", bg: "#16A34A15" },
-  rejected: { label: "Ditolak", color: "#DC2626", bg: "#DC262615" },
-  manual_contact_required: { label: "Menunggu Bayar", color: "#B58900", bg: "#B5890015" },
+const paymentLabels: Record<string, { label: string; tone: string }> = {
+  dp_pending: { label: "Menunggu DP", tone: "badge-pending" },
+  dp_paid: { label: "DP Diterima", tone: "badge-accent" },
+  settlement_pending: { label: "Menunggu Pelunasan", tone: "badge-pending" },
+  pending: { label: "Menunggu Bayar", tone: "badge-pending" },
+  paid: { label: "Lunas", tone: "badge-success" },
+  rejected: { label: "Ditolak", tone: "badge-danger" },
+  manual_contact_required: { label: "Menunggu Bayar", tone: "badge-pending" },
 };
 
 const paymentActionLabels: Record<string, string> = {
@@ -110,6 +116,7 @@ export default function AdminPage() {
   const { t } = useLang();
   const { data: session, status: authStatus } = useSession();
   const router = useRouter();
+  const [tab, setTab] = useState<AdminTab>("orders");
 
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [queueInfo, setQueueInfo] = useState<QueueInfo>({
@@ -206,7 +213,9 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (authStatus === "unauthenticated") router.replace("/login");
-    else if ((session?.user as { role?: string })?.role !== "admin") router.replace("/");
+    else if (authStatus === "authenticated" && (session?.user as { role?: string })?.role !== "admin") {
+      router.replace("/");
+    }
   }, [authStatus, session, router]);
 
   const fetchAdminData = useCallback(async () => {
@@ -527,141 +536,184 @@ export default function AdminPage() {
     return matchesSearch && (orderStatusFilter === "all" || order.status === orderStatusFilter);
   });
 
-  if (authStatus === "loading" || (session?.user as { role?: string })?.role !== "admin") {
+  if (authStatus === "loading") {
+    return (
+      <main className="ui-shell flex min-h-screen items-center justify-center text-ink">
+        <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.12em] text-muted">
+          <Loader2 className="h-4 w-4 animate-spin" /> Memuat admin desk
+        </div>
+      </main>
+    );
+  }
+
+  if ((session?.user as { role?: string })?.role !== "admin") {
     return null;
   }
 
   return (
-    <div className="admin-shell ui-shell min-h-screen text-[#17191f] relative z-10">
-  <Topography
-    lowColor="#94A3B8"
-    midColor="#CBD5E1"
-    highColor="#F8FAFC"
-    speed={0.3}
-    morphAmount={4}
-    morphSpeed={0.05}
-    bands={3}
-    thickness={0.01}
-    scale={1}
-    pixelSize={1}
-    glow={0.5}
-    colorMode="elevation"
-    contrast={3}
-    brightness={1}
-    fillBands={false}
-    opacity={0.1}
-    grain
-    grainIntensity={0.05}
-    mouseInteraction
-    mouseRadius={0.3}
-    mouseStrength={0.4}
-  />
-  <div className="max-w-5xl mx-auto px-6 py-12 relative z-10">
-        <div className="flex items-center justify-between mb-6">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-sm text-[#1A1A1E]/50 hover:text-[#1A1A1E]"
-          >
-            <ArrowLeft className="w-4 h-4" /> kookiez.
+    <div className="ui-shell min-h-screen text-ink">
+      <div className="mx-auto max-w-page px-5 py-8 sm:px-7 sm:py-10">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href="/" className="inline-flex min-h-[44px] items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink">
+            <ArrowLeft className="h-4 w-4" /> kookiez.
           </Link>
-          <div className="flex items-center gap-3">
-      
+          <div className="flex items-center gap-2">
+            <span className="stamp">Admin desk</span>
             <button
-              onClick={() => signOut({ callbackUrl: "/" })}
-              className="inline-flex items-center gap-1.5 text-sm text-[#1A1A1E]/50 hover:text-[#1A1A1E]"
+              type="button"
+              onClick={() => setSoundEnabled((value) => !value)}
+              aria-pressed={soundEnabled}
+              aria-label={soundEnabled ? "Matikan suara notifikasi" : "Nyalakan suara notifikasi"}
+              title={soundEnabled ? "Suara notifikasi aktif" : "Suara notifikasi mati"}
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-card text-muted hover:text-ink"
             >
-              <LogOut className="w-4 h-4" /> {t("admin_logout")}
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 text-sm text-muted transition-colors hover:text-ink"
+            >
+              <LogOut className="h-4 w-4" /> {t("admin_logout")}
             </button>
           </div>
         </div>
 
-        <div className="mb-7 flex items-end justify-between gap-4 border-b border-black/[.08] pb-6">
-          <div><p className="font-mono text-[10px] tracking-[.16em] text-[#0038FF]">WORKSPACE</p><h1 className="mt-1 font-heading text-3xl font-semibold tracking-[-.02em]">Admin Dashboard</h1></div>
-          
+        <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="kicker mb-2">Workspace</p>
+            <h1 className="display text-[clamp(2.4rem,5vw,4rem)]">Admin dashboard.</h1>
+            <p className="mt-2 text-sm text-muted">
+              Masuk sebagai <span className="font-medium text-ink">{session?.user?.email}</span>
+            </p>
+          </div>
+          <span className="stamp stamp-accent">{orders.length} order tercatat</span>
         </div>
-  
 
+        <nav
+          className="mt-7 flex flex-wrap gap-x-5 border-b border-line pb-0"
+          aria-label="Bagian admin"
+        >
+          {(
+            [
+              { id: "overview", label: "Overview" },
+              { id: "orders", label: "Orders" },
+              { id: "pricing", label: "Pricing" },
+              { id: "promo", label: "Promo" },
+              { id: "payments", label: "Payments" },
+              { id: "queue", label: "Queue" },
+              { id: "portfolio", label: "Portfolio" },
+              { id: "settings", label: "Settings" },
+            ] as { id: AdminTab; label: string }[]
+          ).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTab(item.id)}
+              aria-current={tab === item.id ? "page" : undefined}
+              className="admin-tab"
+              data-active={tab === item.id}
+            >
+              {item.label}
+              {item.id === "orders" && <span className="font-mono text-[11px] text-muted">{orders.length}</span>}
+            </button>
+          ))}
+        </nav>
 
-        <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
-          <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">PRICE SETTINGS</p>
+        <div className="pt-8">
+        {tab === "pricing" && (
+<section className="ui-panel p-5 sm:p-6">
+          <p className="font-mono text-[11px] tracking-widest text-accent mb-1">PRICE SETTINGS</p>
           <h2 className="font-heading text-xl font-semibold mb-2">Atur estimasi harga</h2>
-          <p className="text-sm text-[#1A1A1E]/55 mb-5">Harga ini langsung dipakai kalkulator dan form pemesanan.</p>
+          <p className="text-sm text-muted mb-5">Harga ini langsung dipakai kalkulator dan form pemesanan.</p>
           <div className="grid gap-4 sm:grid-cols-2">
             {[["hemat", "Hemat"], ["standar", "Standar"], ["lengkap", "Paket Lengkap"], ["borongan", "Borongan / Custom"]].map(([id, label]) => (
               <label key={id} className="grid gap-2 text-sm font-medium">
                 {label}
                 <div className="flex items-center gap-2">
-                  <span className="text-[#1A1A1E]/45">Rp</span>
-                  <input type="number" min="0" value={pricing[id as keyof PricingOverride].base ?? ""} disabled={id === "borongan"} onChange={(e) => setPricing((current) => ({ ...current, [id]: { ...current[id as keyof PricingOverride], base: e.target.value === "" ? null : Number(e.target.value) } }))} className="w-full rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm focus:border-[#0038FF] focus:outline-none" />
-                  <input type="number" min="0" max="100" value={pricing[id as keyof PricingOverride].promoPercent} onChange={(e) => setPricing((current) => ({ ...current, [id]: { ...current[id as keyof PricingOverride], promoPercent: Number(e.target.value) } }))} className="w-24 rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm focus:border-[#0038FF] focus:outline-none" aria-label={`Promo ${label} persen`} />
+                  <span className="text-muted">Rp</span>
+                  <input type="number" min="0" value={pricing[id as keyof PricingOverride].base ?? ""} disabled={id === "borongan"} onChange={(e) => setPricing((current) => ({ ...current, [id]: { ...current[id as keyof PricingOverride], base: e.target.value === "" ? null : Number(e.target.value) } }))} className="w-full rounded-lg border border-line bg-paper px-3 py-2.5 font-mono text-sm focus:border-accent focus:outline-none" />
+                  <input type="number" min="0" max="100" value={pricing[id as keyof PricingOverride].promoPercent} onChange={(e) => setPricing((current) => ({ ...current, [id]: { ...current[id as keyof PricingOverride], promoPercent: Number(e.target.value) } }))} className="w-24 rounded-lg border border-line bg-paper px-3 py-2.5 font-mono text-sm focus:border-accent focus:outline-none" aria-label={`Promo ${label} persen`} />
                 </div>
               </label>
             ))}
           </div>
           <div className="mt-5 flex items-center gap-3">
-            <button onClick={savePricing} className="rounded-lg bg-[#0038FF] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0030DB]">Simpan harga</button>
-            {pricingMessage && <span className="text-xs text-[#1A1A1E]/55" role="status">{pricingMessage}</span>}
+            <button onClick={savePricing} className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-strong">Simpan harga</button>
+            {pricingMessage && <span className="text-xs text-muted" role="status">{pricingMessage}</span>}
           </div>
         </section>
+        )}
 
-        <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
-          <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">PROMO CODES</p>
+
+        {tab === "promo" && (
+<section className="ui-panel p-5 sm:p-6">
+          <p className="font-mono text-[11px] tracking-widest text-accent mb-1">PROMO CODES</p>
           <h2 className="font-heading text-xl font-semibold mb-2">Kelola kode promo</h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            <input value={promoForm.code} onChange={(e) => setPromoForm((current) => ({ ...current, code: e.target.value }))} placeholder="Kode promo" className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm" />
-            <input type="number" min="1" max="100" value={promoForm.percent} onChange={(e) => setPromoForm((current) => ({ ...current, percent: Number(e.target.value) }))} placeholder="Persen diskon" className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm" />
-            <label className="grid gap-1 text-sm font-medium">Mulai berlaku<input type="datetime-local" value={promoForm.startsAt} onChange={(e) => setPromoForm((current) => ({ ...current, startsAt: e.target.value }))} className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 text-sm" /></label>
-            <label className="grid gap-1 text-sm font-medium">Berakhir berlaku<input type="datetime-local" value={promoForm.expiresAt} onChange={(e) => setPromoForm((current) => ({ ...current, expiresAt: e.target.value }))} className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 text-sm" /></label>
+            <input value={promoForm.code} onChange={(e) => setPromoForm((current) => ({ ...current, code: e.target.value }))} placeholder="Kode promo" className="rounded-lg border border-line bg-paper px-3 py-2.5 font-mono text-sm" />
+            <input type="number" min="1" max="100" value={promoForm.percent} onChange={(e) => setPromoForm((current) => ({ ...current, percent: Number(e.target.value) }))} placeholder="Persen diskon" className="rounded-lg border border-line bg-paper px-3 py-2.5 font-mono text-sm" />
+            <label className="grid gap-1 text-sm font-medium">Mulai berlaku<input type="datetime-local" value={promoForm.startsAt} onChange={(e) => setPromoForm((current) => ({ ...current, startsAt: e.target.value }))} className="rounded-lg border border-line bg-paper px-3 py-2.5 text-sm" /></label>
+            <label className="grid gap-1 text-sm font-medium">Berakhir berlaku<input type="datetime-local" value={promoForm.expiresAt} onChange={(e) => setPromoForm((current) => ({ ...current, expiresAt: e.target.value }))} className="rounded-lg border border-line bg-paper px-3 py-2.5 text-sm" /></label>
           </div>
           <div className="mt-4 flex flex-wrap gap-3 text-sm">
             {[["hemat", "Hemat"], ["standar", "Standar"], ["lengkap", "Paket Lengkap"]].map(([id, label]) => <label key={id} className="flex items-center gap-2"><input type="checkbox" checked={promoForm.packageIds.includes(id)} onChange={(e) => setPromoForm((current) => ({ ...current, packageIds: e.target.checked ? [...current.packageIds, id] : current.packageIds.filter((item) => item !== id) }))} />{label}</label>)}
           </div>
-          <div className="mt-4 flex items-center gap-3"><button onClick={savePromo} disabled={!promoForm.code || !promoForm.startsAt || !promoForm.expiresAt || !promoForm.packageIds.length} className="rounded-lg bg-[#0038FF] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40">Tambah kode promo</button>{promoMessage && <span className="text-xs text-[#1A1A1E]/55" role="status">{promoMessage}</span>}</div>
+          <div className="mt-4 flex items-center gap-3"><button onClick={savePromo} disabled={!promoForm.code || !promoForm.startsAt || !promoForm.expiresAt || !promoForm.packageIds.length} className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40">Tambah kode promo</button>{promoMessage && <span className="text-xs text-muted" role="status">{promoMessage}</span>}</div>
           <div className="mt-5 space-y-2">
-            {promos.map((promo) => <div key={promo._id} className="flex items-center justify-between gap-3 rounded-lg border border-[#1A1A1E]/10 px-3 py-2.5 text-sm"><span><strong className="font-mono">{promo.code}</strong> · {promo.percent}% · {promo.packageIds.join(", ")}<span className="block text-xs text-[#1A1A1E]/45">{new Date(promo.startsAt).toLocaleString("id-ID")} - {new Date(promo.expiresAt).toLocaleString("id-ID")}</span></span><button onClick={() => deletePromo(promo._id)} className="text-xs text-red-600 hover:underline">Hapus</button></div>)}
+            {promos.map((promo) => <div key={promo._id} className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2.5 text-sm"><span><strong className="font-mono">{promo.code}</strong> · {promo.percent}% · {promo.packageIds.join(", ")}<span className="block text-xs text-muted">{new Date(promo.startsAt).toLocaleString("id-ID")} - {new Date(promo.expiresAt).toLocaleString("id-ID")}</span></span><button onClick={() => deletePromo(promo._id)} className="text-xs text-danger hover:underline">Hapus</button></div>)}
           </div>
         </section>
+        )}
 
-        <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
-          <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">PAYMENT SETTINGS</p>
+
+        {tab === "payments" && (
+<section className="ui-panel p-5 sm:p-6">
+          <p className="font-mono text-[11px] tracking-widest text-accent mb-1">PAYMENT SETTINGS</p>
           <h2 className="font-heading text-xl font-semibold mb-2">Payment online</h2>
           <label className="flex items-center gap-3 text-sm font-medium mb-5">
-            <input type="checkbox" checked={onlinePaymentEnabled} onChange={(event) => setOnlinePaymentEnabled(event.target.checked)} className="h-4 w-4 accent-[#0038FF]" />
+            <input type="checkbox" checked={onlinePaymentEnabled} onChange={(event) => setOnlinePaymentEnabled(event.target.checked)} className="h-4 w-4 accent-accent" />
             Payment online aktif
           </label>
           <div className="grid gap-4">
             <label className="grid gap-2 text-sm font-medium">
               Nomor WhatsApp CS
-              <input value={whatsappCsNumber} onChange={(event) => setWhatsappCsNumber(event.target.value)} placeholder="628xxxxxxxxxx" className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 font-mono text-sm focus:border-[#0038FF] focus:outline-none" />
+              <input value={whatsappCsNumber} onChange={(event) => setWhatsappCsNumber(event.target.value)} placeholder="628xxxxxxxxxx" className="rounded-lg border border-line bg-paper px-3 py-2.5 font-mono text-sm focus:border-accent focus:outline-none" />
             </label>
             <label className="grid gap-2 text-sm font-medium">
               Pesan fallback
-              <textarea value={whatsappFallbackMessage} onChange={(event) => setWhatsappFallbackMessage(event.target.value)} rows={3} className="rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2.5 text-sm focus:border-[#0038FF] focus:outline-none" />
+              <textarea value={whatsappFallbackMessage} onChange={(event) => setWhatsappFallbackMessage(event.target.value)} rows={3} className="rounded-lg border border-line bg-paper px-3 py-2.5 text-sm focus:border-accent focus:outline-none" />
             </label>
           </div>
           <div className="mt-5 flex items-center gap-3">
-            <button onClick={savePaymentSettings} className="rounded-lg bg-[#0038FF] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0030DB]">Simpan pengaturan</button>
-            {paymentMessage && <span className="text-xs text-[#1A1A1E]/55" role="status">{paymentMessage}</span>}
+            <button onClick={savePaymentSettings} className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-strong">Simpan pengaturan</button>
+            {paymentMessage && <span className="text-xs text-muted" role="status">{paymentMessage}</span>}
           </div>
         </section>
+        )}
+
 
         {/* Sales snapshot */}
-        <section className="mb-8 grid gap-3 sm:grid-cols-3">
+        {tab === "overview" && (
+<section className="mb-8 grid gap-3 sm:grid-cols-3">
           {[
             ["Total pesanan", orders.length.toString()],
             ["Sedang berjalan", orders.filter((order) => order.status !== "done").length.toString()],
             ["Pendapatan tercatat", new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(orders.reduce((sum, order) => sum + (order.amount ?? 0), 0))],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-2xl border border-[#1A1A1E]/10 bg-white p-5">
-              <p className="text-xs text-[#1A1A1E]/50">{label}</p>
-              <p className="mt-2 font-mono text-2xl font-semibold text-[#0038FF]">{value}</p>
+            <div key={label} className="rounded-2xl border border-line bg-card p-5">
+              <p className="text-xs text-muted">{label}</p>
+              <p className="mt-2 font-mono text-2xl font-semibold text-accent">{value}</p>
             </div>
           ))}
         </section>
+        )}
+
 
         {/* Slot Management Panel */}
-        <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
-          <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">
+        {(tab === "queue" || tab === "overview") && (
+<section className="ui-panel p-5 sm:p-6">
+          <p className="font-mono text-[11px] tracking-widest text-accent mb-1">
             QUEUE CONTROL
           </p>
           <h2 className="font-heading text-xl font-semibold mb-5">
@@ -669,23 +721,23 @@ export default function AdminPage() {
           </h2>
 
           <div className="grid sm:grid-cols-3 gap-4 mb-5">
-            <div className="text-center p-4 rounded-lg bg-[#0038FF]/5 border border-[#0038FF]/10">
-              <div className="text-3xl font-mono font-bold text-[#0038FF]">
+            <div className="text-center p-4 rounded-lg bg-accent/5 border border-accent/10">
+              <div className="text-3xl font-mono font-bold text-accent">
                 {queueInfo.maxSlots}
               </div>
-              <div className="text-xs text-[#1A1A1E]/50 mt-1">Total Slot</div>
+              <div className="text-xs text-muted mt-1">Total Slot</div>
             </div>
-            <div className="text-center p-4 rounded-lg bg-[#B58900]/5 border border-[#B58900]/10">
-              <div className="text-3xl font-mono font-bold text-[#B58900]">
+            <div className="text-center p-4 rounded-lg bg-pending/5 border border-pending/20">
+              <div className="text-3xl font-mono font-bold text-pending">
                 {queueInfo.activeSlots}
               </div>
-              <div className="text-xs text-[#1A1A1E]/50 mt-1">Terisi</div>
+              <div className="text-xs text-muted mt-1">Terisi</div>
             </div>
-            <div className="text-center p-4 rounded-lg bg-[#16A34A]/5 border border-[#16A34A]/10">
-              <div className="text-3xl font-mono font-bold text-[#16A34A]">
+            <div className="text-center p-4 rounded-lg bg-success/5 border border-success/20">
+              <div className="text-3xl font-mono font-bold text-success">
                 {queueInfo.availableSlots}
               </div>
-              <div className="text-xs text-[#1A1A1E]/50 mt-1">Tersedia</div>
+              <div className="text-xs text-muted mt-1">Tersedia</div>
             </div>
           </div>
 
@@ -693,7 +745,8 @@ export default function AdminPage() {
             <button
               onClick={() => updateSlots(-1)}
               disabled={updatingSlot || queueInfo.maxSlots <= 1}
-              className="flex items-center justify-center w-10 h-10 rounded-lg border border-[#1A1A1E]/15 hover:border-[#1A1A1E]/30 disabled:opacity-40 transition-colors"
+              aria-label="Kurangi slot"
+              className="flex h-11 w-11 items-center justify-center rounded-lg border border-line transition-colors hover:border-ink/30 disabled:opacity-40"
             >
               <Minus className="w-4 h-4" />
             </button>
@@ -701,18 +754,19 @@ export default function AdminPage() {
               <span className="font-mono text-lg font-semibold">
                 {queueInfo.maxSlots}
               </span>
-              <span className="text-xs text-[#1A1A1E]/50 ml-2">slot</span>
+              <span className="text-xs text-muted ml-2">slot</span>
             </div>
             <button
               onClick={() => updateSlots(1)}
               disabled={updatingSlot}
-              className="flex items-center justify-center w-10 h-10 rounded-lg border border-[#1A1A1E]/15 hover:border-[#1A1A1E]/30 disabled:opacity-40 transition-colors"
+              aria-label="Tambah slot"
+              className="flex h-11 w-11 items-center justify-center rounded-lg border border-line transition-colors hover:border-ink/30 disabled:opacity-40"
             >
               <Plus className="w-4 h-4" />
             </button>
           </div>
           {slotMessage && (
-            <p className="mt-3 text-xs text-[#1A1A1E]/60" role="status">{slotMessage}</p>
+            <p className="mt-3 text-xs text-muted" role="status">{slotMessage}</p>
           )}
 
           <div className="mt-4 flex gap-2">
@@ -720,11 +774,11 @@ export default function AdminPage() {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Catatan antrean (tampil di landing page)..."
-              className="flex-1 border border-[#1A1A1E]/15 rounded-lg px-3 py-2.5 text-sm"
+              className="flex-1 border border-line rounded-lg px-3 py-2.5 text-sm"
             />
             <button
               onClick={saveNote}
-              className="bg-[#1A1A1E] text-white rounded-lg px-4 py-2.5 text-sm font-medium shrink-0"
+              className="bg-ink text-white rounded-lg px-4 py-2.5 text-sm font-medium shrink-0"
             >
               Simpan
             </button>
@@ -738,31 +792,34 @@ export default function AdminPage() {
                   key={i}
                   className={`h-2.5 flex-1 rounded-full transition-colors ${
                     i < queueInfo.activeSlots
-                      ? "bg-[#0038FF]"
-                      : "bg-[#1A1A1E]/10"
+                      ? "bg-accent"
+                      : "bg-ink/10"
                   }`}
                 />
               ))}
             </div>
           </div>
         </section>
+        )}
 
-        <section className="mb-8 border border-[#1A1A1E]/10 rounded-xl p-6 bg-white">
-          <p className="font-mono text-[10px] tracking-widest text-[#0038FF] mb-1">CONTENT CONFIG</p>
+
+        {tab === "portfolio" && (
+<section className="ui-panel p-5 sm:p-6">
+          <p className="font-mono text-[11px] tracking-widest text-accent mb-1">CONTENT CONFIG</p>
           <h2 className="font-heading text-xl font-semibold mb-3">Karya Kami</h2>
-          <p className="text-sm text-[#1A1A1E]/55 mb-5">Tambahkan karya baru dengan mengunggah gambar, lalu isi nama klien, judul, dan deskripsinya. Tidak perlu format JSON.</p>
+          <p className="text-sm text-muted mb-5">Tambahkan karya baru dengan mengunggah gambar, lalu isi nama klien, judul, dan deskripsinya. Tidak perlu format JSON.</p>
 
           {/* Form tambah karya */}
-          <div className="rounded-lg border border-[#1A1A1E]/10 bg-[#F9F9FB] p-4 mb-6">
+          <div className="rounded-lg border border-line bg-paper p-4 mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-[#1A1A1E]/60 mb-1.5">Gambar karya</label>
+                <label className="block text-xs font-medium text-muted mb-1.5">Gambar karya</label>
                 <div className="flex items-center gap-3">
                   {workImagePreview ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={workImagePreview} alt="Pratinjau" className="h-20 w-20 rounded-lg object-cover border border-[#1A1A1E]/10 shrink-0" />
+                    <img src={workImagePreview} alt="Pratinjau" className="h-20 w-20 rounded-lg object-cover border border-line shrink-0" />
                   ) : (
-                    <div className="h-20 w-20 rounded-lg border border-dashed border-[#1A1A1E]/20 flex items-center justify-center shrink-0 text-[#1A1A1E]/30">
+                    <div className="h-20 w-20 rounded-lg border border-dashed border-line flex items-center justify-center shrink-0 text-muted">
                       <Upload className="h-5 w-5" />
                     </div>
                   )}
@@ -772,46 +829,46 @@ export default function AdminPage() {
                       type="file"
                       accept="image/jpeg,image/png,image/webp,image/gif"
                       onChange={(e) => handleWorkImageChange(e.target.files?.[0] ?? null)}
-                      className="block w-full text-xs text-[#1A1A1E]/70 file:mr-3 file:rounded-lg file:border-0 file:bg-[#0038FF] file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-[#0038FF]/90"
+                      className="block w-full text-xs text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-accent/90"
                     />
-                    <p className="mt-1 text-[11px] text-[#1A1A1E]/40">JPG, PNG, WEBP, atau GIF. Maks 4 MB.</p>
+                    <p className="mt-1 text-[11px] text-muted">JPG, PNG, WEBP, atau GIF. Maks 4 MB.</p>
                   </div>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-[#1A1A1E]/60 mb-1.5">Nama klien pemesan</label>
+                <label className="block text-xs font-medium text-muted mb-1.5">Nama klien pemesan</label>
                 <input
                   value={workForm.klien}
                   onChange={(e) => setWorkForm((f) => ({ ...f, klien: e.target.value }))}
                   placeholder="cth. Warung Kopi Rindu"
-                  className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-[#0038FF]"
+                  className="w-full rounded-lg border border-line bg-card px-3 py-2.5 text-sm focus:outline-none focus:border-accent"
                 />
-                <label className="mt-2 flex items-center gap-2 text-xs text-[#1A1A1E]/60">
+                <label className="mt-2 flex items-center gap-2 text-xs text-muted">
                   <input
                     type="checkbox"
                     checked={workForm.klienSamaran}
                     onChange={(e) => setWorkForm((f) => ({ ...f, klienSamaran: e.target.checked }))}
-                    className="h-3.5 w-3.5 rounded border-[#1A1A1E]/30 text-[#0038FF] focus:ring-[#0038FF]"
+                    className="h-3.5 w-3.5 rounded border-ink/30 text-accent focus:ring-accent"
                   />
                   Nama di atas adalah samaran (klien tidak ingin nama aslinya tampil publik)
                 </label>
                 {workForm.klienSamaran && (
-                  <p className="mt-1 text-[11px] text-[#1A1A1E]/40">Di halaman publik, nama klien akan diganti menjadi &quot;Klien Rahasia&quot;.</p>
+                  <p className="mt-1 text-[11px] text-muted">Di halaman publik, nama klien akan diganti menjadi &quot;Klien Rahasia&quot;.</p>
                 )}
               </div>
               <div>
-                <label className="block text-xs font-medium text-[#1A1A1E]/60 mb-1.5">Judul karya</label>
+                <label className="block text-xs font-medium text-muted mb-1.5">Judul karya</label>
                 <input
                   value={workForm.judul}
                   onChange={(e) => setWorkForm((f) => ({ ...f, judul: e.target.value }))}
                   placeholder="cth. Logo Kedai Kopi Modern"
-                  className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-[#0038FF]"
+                  className="w-full rounded-lg border border-line bg-card px-3 py-2.5 text-sm focus:outline-none focus:border-accent"
                 />
-                <label className="block text-xs font-medium text-[#1A1A1E]/60 mb-1.5 mt-3">Kategori</label>
+                <label className="block text-xs font-medium text-muted mb-1.5 mt-3">Kategori</label>
                 <select
                   value={workForm.kategori}
                   onChange={(e) => setWorkForm((f) => ({ ...f, kategori: e.target.value as PortfolioCategory }))}
-                  className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2.5 text-sm focus:outline-none focus:border-[#0038FF]"
+                  className="w-full rounded-lg border border-line bg-card px-3 py-2.5 text-sm focus:outline-none focus:border-accent"
                 >
                   {PORTFOLIO_CATEGORIES.map((c) => (
                     <option key={c.value} value={c.value}>{c.label}</option>
@@ -819,13 +876,13 @@ export default function AdminPage() {
                 </select>
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-[#1A1A1E]/60 mb-1.5">Deskripsi</label>
+                <label className="block text-xs font-medium text-muted mb-1.5">Deskripsi</label>
                 <textarea
                   value={workForm.deskripsi}
                   onChange={(e) => setWorkForm((f) => ({ ...f, deskripsi: e.target.value }))}
                   rows={3}
                   placeholder="Ceritakan singkat tentang karya ini..."
-                  className="w-full rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:border-[#0038FF]"
+                  className="w-full rounded-lg border border-line bg-card px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:border-accent"
                 />
               </div>
             </div>
@@ -833,28 +890,28 @@ export default function AdminPage() {
               <button
                 onClick={addWorkItem}
                 disabled={workSaving}
-                className="inline-flex items-center gap-2 bg-[#0038FF] text-white rounded-lg px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 bg-accent text-white rounded-lg px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {workSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 {workSaving ? "Menyimpan..." : "Tambah Karya"}
               </button>
-              {workError && <p className="text-sm text-red-600">{workError}</p>}
-              {!workError && workMessage && <p className="text-sm text-[#0038FF]">{workMessage}</p>}
+              {workError && <p className="text-sm text-danger">{workError}</p>}
+              {!workError && workMessage && <p className="text-sm text-accent">{workMessage}</p>}
             </div>
           </div>
 
           {/* Daftar karya tersimpan */}
           {workItems.length === 0 ? (
-            <p className="text-sm text-[#1A1A1E]/40">Belum ada karya yang ditambahkan lewat form ini.</p>
+            <p className="text-sm text-muted">Belum ada karya yang ditambahkan lewat form ini.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {workItems.map((item) => (
-                <div key={item.id} className="relative rounded-lg border border-[#1A1A1E]/10 overflow-hidden bg-white">
+                <div key={item.id} className="relative rounded-lg border border-line overflow-hidden bg-card">
                   <button
                     onClick={() => deleteWorkItem(item.id)}
                     disabled={workDeletingId === item.id}
                     aria-label={`Hapus karya ${item.judul}`}
-                    className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/50 hover:bg-red-600 text-white flex items-center justify-center transition-colors disabled:opacity-50"
+                    className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-ink/50 hover:bg-danger text-white flex items-center justify-center transition-colors disabled:opacity-50"
                   >
                     {workDeletingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
                   </button>
@@ -862,81 +919,87 @@ export default function AdminPage() {
                   <img src={`/api/portfolio/image/${item.imageId}`} alt={item.judul} className="h-32 w-full object-cover" />
                   <div className="p-3">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <span className="font-mono text-[9px] tracking-widest text-[#0038FF] bg-[#0038FF]/5 border border-[#0038FF]/15 rounded-full px-2 py-0.5">
+                      <span className="font-mono text-[11px] tracking-widest text-accent bg-accent/5 border border-accent/20 rounded-full px-2 py-0.5">
                         {portfolioCategoryLabel(item.kategori).toUpperCase()}
                       </span>
                       {item.klienSamaran && (
-                        <span className="font-mono text-[9px] tracking-widest text-[#B58900] bg-[#B58900]/5 border border-[#B58900]/20 rounded-full px-2 py-0.5">
+                        <span className="font-mono text-[11px] tracking-widest text-pending bg-pending/5 border border-pending/30 rounded-full px-2 py-0.5">
                           SAMARAN
                         </span>
                       )}
                     </div>
-                    <p className="text-sm font-medium text-[#1A1A1E] truncate">{item.judul}</p>
-                    <p className="text-xs text-[#1A1A1E]/45 truncate">{item.klien}</p>
+                    <p className="text-sm font-medium text-ink truncate">{item.judul}</p>
+                    <p className="text-xs text-muted truncate">{item.klien}</p>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </section>
+        )}
 
-        <section className="mb-8 border border-red-200 rounded-xl p-5 bg-red-50/60">
+
+        {tab === "settings" && (
+<section className="ui-panel !border-danger/30 !bg-danger/5 p-5 sm:p-6">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <h2 className="font-heading text-lg font-semibold text-red-900">Reset data aplikasi</h2>
-              <p className="mt-1 text-sm text-red-800/75">Menghapus order, promo, pengaturan, portfolio, dan semua file GridFS. Akun admin tetap dipertahankan.</p>
+              <h2 className="font-heading text-lg font-semibold text-danger">Reset data aplikasi</h2>
+              <p className="mt-1 text-sm text-danger/80">Menghapus order, promo, pengaturan, portfolio, dan semua file GridFS. Akun admin tetap dipertahankan.</p>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <input value={resetConfirmation} onChange={(event) => setResetConfirmation(event.target.value.toUpperCase())} placeholder="Ketik RESET" aria-label="Konfirmasi reset database" className="min-w-0 flex-1 rounded-lg border border-red-200 bg-white px-3 py-2.5 font-mono text-sm focus:border-red-500 focus:outline-none" />
-                <button onClick={resetDatabase} disabled={resetting || resetConfirmation !== "RESET"} className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40">{resetting ? "Menghapus..." : "Hapus semua data"}</button>
+                <input value={resetConfirmation} onChange={(event) => setResetConfirmation(event.target.value.toUpperCase())} placeholder="Ketik RESET" aria-label="Konfirmasi reset database" className="min-w-0 flex-1 rounded-lg border border-danger/30 bg-card px-3 py-2.5 font-mono text-sm focus:border-red-500 focus:outline-none" />
+                <button onClick={resetDatabase} disabled={resetting || resetConfirmation !== "RESET"} className="inline-flex items-center justify-center gap-2 rounded-lg bg-danger px-4 py-2.5 text-sm font-medium text-white hover:bg-danger/90 disabled:cursor-not-allowed disabled:opacity-40">{resetting ? "Menghapus..." : "Hapus semua data"}</button>
               </div>
-              {resetMessage && <p className="mt-2 text-xs text-red-800" role="status">{resetMessage}</p>}
+              {resetMessage && <p className="mt-2 text-xs text-danger" role="status">{resetMessage}</p>}
             </div>
           </div>
         </section>
+        )}
+
 
         {/* Orders Table */}
-        <section className="admin-orders ui-panel overflow-hidden">
-          <div className="px-6 py-5 border-b border-black/[.08]">
-            <p className="font-mono text-[10px] tracking-widest text-[#0038FF]">
+        {tab === "orders" && (
+<section className="admin-orders ui-panel overflow-hidden">
+          <div className="px-6 py-5 border-b border-line">
+            <p className="font-mono text-[11px] tracking-widest text-accent">
               ORDERS
             </p>
             <h2 className="font-heading text-2xl font-semibold mt-1 tracking-[-.02em]">
               Pesanan Masuk ({orders.length})
             </h2>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-              <input value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder="Cari kode, layanan, atau customer" className="min-w-0 flex-1 rounded-lg border border-[#1A1A1E]/15 bg-[#F9F9FB] px-3 py-2 text-sm" />
-              <a href={`/api/admin/orders/export?search=${encodeURIComponent(orderSearch)}&status=${orderStatusFilter}`} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2 text-sm font-medium text-[#1A1A1E] hover:border-[#0038FF] hover:text-[#0038FF]"><Download className="h-4 w-4" /> Export CSV</a>
-              <select value={orderStatusFilter} onChange={(event) => setOrderStatusFilter(event.target.value as "all" | OrderStatus)} className="rounded-lg border border-[#1A1A1E]/15 bg-white px-3 py-2 text-sm"><option value="all">Semua status</option><option value="pending">Pending</option><option value="progress">Progress</option><option value="review">Review</option><option value="done">Selesai</option></select>
+              <input value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder="Cari kode, layanan, atau customer" className="min-h-[44px] min-w-0 flex-1 rounded-lg border border-line bg-paper px-3 py-2 text-sm" />
+              <a href={`/api/admin/orders/export?search=${encodeURIComponent(orderSearch)}&status=${orderStatusFilter}`} className="inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-lg border border-line bg-card px-3 py-2 text-sm font-medium text-ink hover:border-accent hover:text-accent"><Download className="h-4 w-4" /> Export CSV</a>
+              <select value={orderStatusFilter} onChange={(event) => setOrderStatusFilter(event.target.value as "all" | OrderStatus)} className="min-h-[44px] rounded-lg border border-line bg-card px-3 py-2 text-sm"><option value="all">Semua status</option><option value="pending">Pending</option><option value="progress">Progress</option><option value="review">Review</option><option value="done">Selesai</option></select>
             </div>
           </div>
 
           {loading ? (
-            <div className="p-12 text-center text-sm text-[#1A1A1E]/40">
+            <div className="p-12 text-center text-sm text-muted">
               <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
               Memuat data...
             </div>
           ) : orders.length === 0 ? (
-            <p className="p-12 text-center text-sm text-[#1A1A1E]/50">
+            <p className="p-12 text-center text-sm text-muted">
               Belum ada pesanan masuk.
             </p>
           ) : (
-            <div className="divide-y divide-[#1A1A1E]/10">
+            <div className="divide-y divide-line">
+              {visibleOrders.length === 0 && (
+                <p className="p-12 text-center text-sm text-muted">Tidak ada order yang cocok dengan filter.</p>
+              )}
               {visibleOrders.map((order) => {
-                const meta = statusMeta(order.status, t);
+                const meta = statusMeta(order.status);
                 const Icon = meta.icon;
                 return (
                   <div key={order.code} className="px-6 py-4">
                     <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono text-sm font-semibold text-[#0038FF]">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <span className="shrink-0 font-mono text-sm font-semibold text-accent">
                           {order.code}
                         </span>
-                        <span
-                          className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
-                          style={{ color: meta.color, backgroundColor: meta.bg }}
-                        >
+                        <span className={`badge ${meta.tone}`}>
                           <Icon
-                            className={`w-3 h-3 ${
+                            className={`h-3 w-3 ${
                               order.status === "progress" ? "animate-spin" : ""
                             }`}
                           />
@@ -944,17 +1007,10 @@ export default function AdminPage() {
                         </span>
                         {(() => {
                           const pm = paymentLabels[order.paymentStatus ?? "pending"] ?? paymentLabels.pending;
-                          return (
-                            <span
-                              className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-full"
-                              style={{ color: pm.color, backgroundColor: pm.bg }}
-                            >
-                              {pm.label}
-                            </span>
-                          );
+                          return <span className={`badge ${pm.tone}`}>{pm.label}</span>;
                         })()}
                         {order.queuePosition && (
-                          <span className="text-xs font-mono text-[#1A1A1E]/40">
+                          <span className="text-xs font-mono text-muted">
                             #{order.queuePosition}
                           </span>
                         )}
@@ -964,39 +1020,39 @@ export default function AdminPage() {
                         onChange={(e) =>
                           changeStatus(order.code, e.target.value as OrderStatus)
                         }
-                        className="text-xs font-mono border border-[#1A1A1E]/15 rounded-md px-2 py-1.5 bg-white"
+                        className="min-h-[44px] rounded-md border border-line bg-card px-2 py-1.5 font-mono text-xs"
                       >
-                        <option value="pending">{t("status_pending")}</option>
-                        <option value="progress">{t("status_progress")}</option>
-                        <option value="review">{t("status_review")}</option>
-                        <option value="done">{t("status_done")}</option>
+                        <option value="pending">{adminStatusLabels.pending}</option>
+                        <option value="progress">{adminStatusLabels.progress}</option>
+                        <option value="review">{adminStatusLabels.review}</option>
+                        <option value="done">{adminStatusLabels.done}</option>
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-[#1A1A1E]/70">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-muted">
                       <div>
-                        <div className="text-[#1A1A1E]/40">Layanan</div>
+                        <div className="text-muted">Layanan</div>
                         <div className="font-medium">{order.service || "—"}</div>
                       </div>
                       <div>
-                        <div className="text-[#1A1A1E]/40">Budget</div>
+                        <div className="text-muted">Budget</div>
                         <div className="font-medium">{order.budgetLabel || "—"}</div>
                       </div>
                       <div>
-                        <div className="text-[#1A1A1E]/40">Tenggat</div>
+                        <div className="text-muted">Tenggat</div>
                         <div className="font-medium">{order.deadline || "—"}</div>
                       </div>
                       <div>
-                        <div className="text-[#1A1A1E]/40">Total</div>
+                        <div className="text-muted">Total</div>
                         <div className="font-medium">{order.finalAmount == null ? "Custom" : new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(order.finalAmount)}</div>
                       </div>
                       <div>
-                        <div className="text-[#1A1A1E]/40">Bayar</div>
+                        <div className="text-muted">Bayar</div>
                         <div className="font-medium">{order.plan} · {order.method}</div>
                       </div>
                       {order.dpAmount != null && (
                         <div>
-                          <div className="text-[#1A1A1E]/40">DP</div>
+                          <div className="text-muted">DP</div>
                           <div className="font-medium">
                             {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(order.dpAmount)}
                           </div>
@@ -1004,7 +1060,7 @@ export default function AdminPage() {
                       )}
                       {order.remainingAmount != null && order.remainingAmount > 0 && (
                         <div>
-                          <div className="text-[#1A1A1E]/40">Sisa</div>
+                          <div className="text-muted">Sisa</div>
                           <div className="font-medium">
                             {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(order.remainingAmount)}
                           </div>
@@ -1012,35 +1068,35 @@ export default function AdminPage() {
                       )}
                       {(order.paidAmount ?? 0) > 0 && (
                         <div>
-                          <div className="text-[#1A1A1E]/40">Terbayar</div>
-                          <div className="font-medium text-[#16A34A]">
+                          <div className="text-muted">Terbayar</div>
+                          <div className="font-medium text-success">
                             {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(order.paidAmount ?? 0)}
                           </div>
                         </div>
                       )}
                     </div>
 
-                    <details className="mt-3 border-t border-[#1A1A1E]/8 pt-3 group">
-                      <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-medium text-[#1A1A1E]/65 hover:text-[#0038FF]"><span>Lihat detail order</span><span className="text-[10px] text-[#98a2b3] group-open:hidden">Buka</span><span className="hidden text-[10px] text-[#98a2b3] group-open:inline">Tutup</span></summary>
-                      <div className="mt-3 space-y-2 text-xs text-[#1A1A1E]/65">
-                        <p><span className="text-[#1A1A1E]/40">Customer:</span> {order.customerName || "-"} {order.customerEmail ? `(${order.customerEmail})` : ""}</p>
-                        {order.briefScope && <p><span className="text-[#1A1A1E]/40">Brief:</span> {order.briefScope}</p>}
-                        <p><span className="text-[#1A1A1E]/40">Waktu:</span> {new Date(order.createdAt).toLocaleString("id-ID")}</p>
-                        {order.promoCode && <p><span className="text-[#1A1A1E]/40">Promo:</span> <span className="font-mono text-[#0038FF]">{order.promoCode}</span></p>}
-                        {order.deliverables?.length ? <div><span className="text-[#1A1A1E]/40">File project:</span><ul className="mt-1 list-inside list-disc">{order.deliverables.map((file) => <li key={file.id}>{file.name}</li>)}</ul></div> : <p className="text-[#98a2b3]">Belum ada file project.</p>}
+                    <details className="mt-3 border-t border-line pt-3 group">
+                      <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between text-xs font-medium text-muted hover:text-accent"><span>Lihat detail order</span><span className="text-[11px] text-muted group-open:hidden">Buka</span><span className="hidden text-[11px] text-muted group-open:inline">Tutup</span></summary>
+                      <div className="mt-3 space-y-2 text-xs text-muted">
+                        <p><span className="text-muted">Customer:</span> {order.customerName || "-"} {order.customerEmail ? `(${order.customerEmail})` : ""}</p>
+                        {order.briefScope && <p><span className="text-muted">Brief:</span> {order.briefScope}</p>}
+                        <p><span className="text-muted">Waktu:</span> {new Date(order.createdAt).toLocaleString("id-ID")}</p>
+                        {order.promoCode && <p><span className="text-muted">Promo:</span> <span className="font-mono text-accent">{order.promoCode}</span></p>}
+                        {order.deliverables?.length ? <div><span className="text-muted">File project:</span><ul className="mt-1 list-inside list-disc">{order.deliverables.map((file) => <li key={file.id}>{file.name}</li>)}</ul></div> : <p className="text-muted">Belum ada file project.</p>}
                       </div>
                       
                       {order.paymentHistory && order.paymentHistory.length > 0 && (
-                        <div className="mt-3 border-t border-[#1A1A1E]/8 pt-3">
-                          <span className="text-[#1A1A1E]/40 text-xs font-semibold">Riwayat Pembayaran</span>
+                        <div className="mt-3 border-t border-line pt-3">
+                          <span className="text-muted text-xs font-semibold">Riwayat Pembayaran</span>
                           <ul className="mt-1 space-y-1">
                             {order.paymentHistory.map((ph) => (
-                              <li key={ph.id} className="text-xs text-[#1A1A1E]/65">
+                              <li key={ph.id} className="text-xs text-muted">
                                 <span className="font-medium">{paymentActionLabels[ph.action] ?? paymentLabels[ph.action]?.label ?? ph.action}</span>
                                 {ph.amount != null && <> — Rp {ph.amount.toLocaleString("id-ID")}</>}
                                 {ph.note && <> ({ph.note})</>}
-                                {ph.proofId && <a href={`/api/files/${ph.proofId}`} target="_blank" rel="noreferrer" className="ml-2 text-[#0038FF] underline">Lihat bukti</a>}
-                                <span className="block text-[10px] text-[#98a2b3]">{new Date(ph.createdAt).toLocaleString("id-ID")} · {ph.actor}</span>
+                                {ph.proofId && <a href={`/api/files/${ph.proofId}`} target="_blank" rel="noreferrer" className="ml-2 text-accent underline">Lihat bukti</a>}
+                                <span className="block text-[11px] text-muted">{new Date(ph.createdAt).toLocaleString("id-ID")} · {ph.actor}</span>
                               </li>
                             ))}
                           </ul>
@@ -1050,42 +1106,42 @@ export default function AdminPage() {
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {order.paymentStatus === "dp_pending" && (
                           <div className="flex flex-wrap items-center gap-2 mb-2 w-full">
-                            <button onClick={() => confirmPayment(order.code, "confirm_dp")} className="inline-flex items-center gap-1.5 rounded-md bg-[#16A34A] px-2.5 py-1.5 text-xs text-white hover:bg-[#15803D]">
+                            <button onClick={() => confirmPayment(order.code, "confirm_dp")} className="inline-flex items-center gap-1.5 rounded-md bg-success px-2.5 py-1.5 text-xs text-white hover:bg-success/90">
                               <CheckCircle2 className="h-3.5 w-3.5" /> Konfirmasi DP
                             </button>
-                            <button onClick={() => confirmPayment(order.code, "reject")} className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50">
+                            <button onClick={() => confirmPayment(order.code, "reject")} className="inline-flex items-center gap-1.5 rounded-md border border-danger/30 px-2.5 py-1.5 text-xs text-danger hover:bg-danger/5">
                               <X className="h-3.5 w-3.5" /> Batalkan
                             </button>
                           </div>
                         )}
                         {order.paymentStatus === "pending" && (
                           <div className="flex flex-wrap items-center gap-2 mb-2 w-full">
-                            <button onClick={() => confirmPayment(order.code, "confirm_full")} className="inline-flex items-center gap-1.5 rounded-md bg-[#16A34A] px-2.5 py-1.5 text-xs text-white hover:bg-[#15803D]">
+                            <button onClick={() => confirmPayment(order.code, "confirm_full")} className="inline-flex items-center gap-1.5 rounded-md bg-success px-2.5 py-1.5 text-xs text-white hover:bg-success/90">
                               <CheckCircle2 className="h-3.5 w-3.5" /> Konfirmasi Pembayaran
                             </button>
-                            <button onClick={() => confirmPayment(order.code, "reject")} className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50">
+                            <button onClick={() => confirmPayment(order.code, "reject")} className="inline-flex items-center gap-1.5 rounded-md border border-danger/30 px-2.5 py-1.5 text-xs text-danger hover:bg-danger/5">
                               <X className="h-3.5 w-3.5" /> Batalkan
                             </button>
                           </div>
                         )}
                         {order.paymentStatus === "settlement_pending" && (
                           <div className="flex flex-wrap items-center gap-2 mb-2 w-full">
-                            <button onClick={() => confirmPayment(order.code, "confirm_settlement")} className="inline-flex items-center gap-1.5 rounded-md bg-[#16A34A] px-2.5 py-1.5 text-xs text-white hover:bg-[#15803D]">
+                            <button onClick={() => confirmPayment(order.code, "confirm_settlement")} className="inline-flex items-center gap-1.5 rounded-md bg-success px-2.5 py-1.5 text-xs text-white hover:bg-success/90">
                               <CheckCircle2 className="h-3.5 w-3.5" /> Konfirmasi Pelunasan
                             </button>
-                            <button onClick={() => confirmPayment(order.code, "reject")} className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50">
+                            <button onClick={() => confirmPayment(order.code, "reject")} className="inline-flex items-center gap-1.5 rounded-md border border-danger/30 px-2.5 py-1.5 text-xs text-danger hover:bg-danger/5">
                               <X className="h-3.5 w-3.5" /> Batalkan
                             </button>
                           </div>
                         )}
-                      <label className={`inline-flex items-center gap-1.5 rounded-md border border-[#1A1A1E]/15 px-2.5 py-1.5 text-xs ${uploadingCode === order.code ? "cursor-wait opacity-60" : "cursor-pointer hover:border-[#0038FF]"}`}>
+                      <label className={`inline-flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1.5 text-xs ${uploadingCode === order.code ? "cursor-wait opacity-60" : "cursor-pointer hover:border-accent"}`}>
                         <Upload className="h-3.5 w-3.5" /> {uploadingCode === order.code ? "Mengunggah..." : "Upload project"}
                         <input type="file" accept={ALLOWED_FILE_ACCEPT} disabled={uploadingCode === order.code} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadDeliverable(order.code, file); event.currentTarget.value = ""; }} />
                       </label>
-                      {!!order.deliverables?.length && <button disabled={sendingCode === order.code || uploadingCode === order.code} onClick={() => sendProject(order.code)} className="inline-flex items-center gap-1.5 rounded-md bg-[#0038FF] px-2.5 py-1.5 text-xs text-white hover:bg-[#0030DB] disabled:cursor-wait disabled:opacity-50"><Send className="h-3.5 w-3.5" /> {sendingCode === order.code ? "Mengirim..." : "Kirim project"}</button>}
-                      {order.projectSentAt && <span className="text-xs text-green-700">Terkirim</span>}
+                      {!!order.deliverables?.length && <button disabled={sendingCode === order.code || uploadingCode === order.code} onClick={() => sendProject(order.code)} className="inline-flex items-center gap-1.5 rounded-md bg-accent px-2.5 py-1.5 text-xs text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-50"><Send className="h-3.5 w-3.5" /> {sendingCode === order.code ? "Mengirim..." : "Kirim project"}</button>}
+                      {order.projectSentAt && <span className="text-xs text-success">Terkirim</span>}
                       </div>
-                      {orderActionMessage[order.code] && <p className="mt-2 text-xs text-[#667085]" role="status">{orderActionMessage[order.code]}</p>}
+                      {orderActionMessage[order.code] && <p className="mt-2 text-xs text-muted" role="status">{orderActionMessage[order.code]}</p>}
                     </details>
                   </div>
                 );
@@ -1093,6 +1149,9 @@ export default function AdminPage() {
             </div>
           )}
         </section>
+        )}
+
+        </div>
       </div>
     </div>
   );
