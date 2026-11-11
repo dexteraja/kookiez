@@ -2,8 +2,8 @@
 
 export function Skeleton({ className = "" }: { className?: string }) {
   return (
-    <div className={`relative overflow-hidden rounded-md bg-ink/[0.07] ${className}`}>
-      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-card/60 to-transparent" />
+    <div aria-hidden="true" className={`relative overflow-hidden rounded-md bg-ink/[0.07] ${className}`}>
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-card/60 to-transparent motion-reduce:animate-none" />
     </div>
   );
 }

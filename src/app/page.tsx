@@ -19,6 +19,8 @@ import {
 import { clearOrderDraft, getOrderDraft, saveOrderDraft } from "@/lib/orders";
 import { getCustomWorkItems, fetchPublishedPortfolio, PORTFOLIO_UPDATED_EVENT, type CustomWorkItem } from "@/lib/portfolio";
 import Modal from "@/components/Modal";
+import LazyImage from "@/components/LazyImage";
+import { Skeleton } from "@/components/Skeleton";
 
 /* ------------------------------------------------------------------ */
 /*  Konfigurasi CS WhatsApp — ganti nomor & pesan default di sini      */
@@ -97,15 +99,6 @@ interface NavRefs {
 const formatIDR = (n: number): string =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
 
-
-function Skeleton({ className = "" }: { className?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`relative block overflow-hidden rounded-md bg-ink/[0.07] before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_1.4s_infinite] before:bg-gradient-to-r before:from-transparent before:via-card/60 before:to-transparent ${className}`}
-    />
-  );
-}
 
 function TicketDivider() {
   return <div className="docket-rule my-1" aria-hidden="true" />;
@@ -1648,20 +1641,19 @@ function ConsultationModal({ open, onClose }: { open: boolean; onClose: () => vo
 
 function WorkLightbox({ item, onClose }: { item: DisplayWorkItem | null; onClose: () => void }) {
   const { t } = useLang();
-  const [imageFailed, setImageFailed] = useState(false);
-  useEffect(() => setImageFailed(false), [item?.id]);
   if (!item) return null;
 
   return (
     <Modal open={Boolean(item)} onClose={onClose} labelledBy="work-title" className="max-w-2xl overflow-hidden rounded-2xl bg-card p-0">
-      <div className="relative flex max-h-[64vh] w-full items-center justify-center overflow-hidden" style={{ backgroundColor: item.hue }}>
-        {item.image && !imageFailed ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
+      <div className="relative flex aspect-[16/10] max-h-[64vh] w-full items-center justify-center overflow-hidden" style={{ backgroundColor: item.hue }}>
+        {item.image ? (
+          <LazyImage
             src={item.image}
             alt={item.title}
-            className="block h-auto max-h-[64vh] w-full object-contain"
-            onError={() => setImageFailed(true)}
+            loading="eager"
+            className="h-full w-full"
+            imageClassName="h-full w-full object-contain"
+            fallbackText="Tanpa gambar"
           />
         ) : (
           <div className="flex aspect-[16/10] w-full items-center justify-center bg-ink/5 font-mono text-[11px] uppercase tracking-[0.12em] text-muted">
@@ -1709,15 +1701,19 @@ function WorkSection({ refProp, onOrder }: { refProp: RefObject<HTMLElement>; on
   const [filter, setFilter] = useState<ServiceId | "all">("all");
   const [active, setActive] = useState<DisplayWorkItem | null>(null);
   const [work, setWork] = useState<DisplayWorkItem[]>([]);
+  const [workLoading, setWorkLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     const sync = async () => {
-      const published = await fetchPublishedPortfolio();
-      if (cancelled) return;
-      setWork([...getCustomWorkItems(), ...published]);
+      try {
+        const published = await fetchPublishedPortfolio();
+        if (!cancelled) setWork([...getCustomWorkItems(), ...published]);
+      } finally {
+        if (!cancelled) setWorkLoading(false);
+      }
     };
-    sync();
+    void sync();
     window.addEventListener(PORTFOLIO_UPDATED_EVENT, sync);
     return () => {
       cancelled = true;
@@ -1765,7 +1761,24 @@ function WorkSection({ refProp, onOrder }: { refProp: RefObject<HTMLElement>; on
         ))}
       </div>
 
-      {filtered.length === 0 ? (
+      {workLoading ? (
+        <div
+          role="status"
+          aria-label="Memuat karya"
+          aria-busy="true"
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {Array.from({ length: 3 }, (_, index) => (
+            <div key={index} aria-hidden="true" className="overflow-hidden rounded-xl border border-line bg-card">
+              <Skeleton className="h-44 w-full rounded-none" />
+              <div className="space-y-2 p-4">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="docket flex flex-col items-center justify-center px-6 py-16 text-center">
           <p className="font-display text-2xl font-semibold">Belum ada karya di kategori ini.</p>
           <p className="mt-2 max-w-sm text-sm text-muted">Karya baru akan muncul di sini setelah dipublikasikan.</p>
@@ -1783,9 +1796,17 @@ function WorkSection({ refProp, onOrder }: { refProp: RefObject<HTMLElement>; on
               className="group overflow-hidden rounded-xl border border-line bg-card text-left transition-colors hover:border-ink/35"
             >
               <div
-                className="relative h-44 overflow-hidden bg-cover bg-center"
-                style={{ backgroundColor: item.hue, backgroundImage: item.image ? `url(${item.image})` : undefined }}
+                className="relative h-44 overflow-hidden"
+                style={{ backgroundColor: item.hue }}
               >
+                {item.image && (
+                  <LazyImage
+                    src={item.image}
+                    alt={item.title}
+                    className="h-full w-full"
+                    imageClassName="h-full w-full object-cover"
+                  />
+                )}
                 <span className="absolute left-3 top-3 rounded-[3px] border border-white/30 bg-ink/55 px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-white backdrop-blur-sm">
                   {item.tag}
                 </span>

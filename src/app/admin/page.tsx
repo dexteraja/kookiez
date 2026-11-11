@@ -11,6 +11,8 @@ import {
 import { useLang } from "@/lib/i18n";
 import { DEFAULT_PRICING, type PricingOverride } from "@/lib/pricing";
 import { ALLOWED_FILE_ACCEPT, MAX_FILE_SIZE } from "@/lib/file-constraints";
+import LazyImage from "@/components/LazyImage";
+import { Skeleton } from "@/components/Skeleton";
 
 type OrderStatus = "pending" | "progress" | "review" | "done";
 
@@ -127,6 +129,8 @@ export default function AdminPage() {
   });
   const [note, setNote] = useState("");
   const [workItems, setWorkItems] = useState<PortfolioItem[]>([]);
+  const [workItemsLoading, setWorkItemsLoading] = useState(false);
+  const [workItemsError, setWorkItemsError] = useState("");
   const [workMessage, setWorkMessage] = useState("");
   const [workError, setWorkError] = useState("");
   const [workSaving, setWorkSaving] = useState(false);
@@ -239,12 +243,26 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchPortfolioItems = useCallback(async () => {
+    setWorkItemsLoading(true);
+    setWorkItemsError("");
+    try {
+      const res = await fetch("/api/admin/portfolio", { cache: "no-store" });
+      if (!res.ok) throw new Error("Gagal memuat daftar karya.");
+      const data = await res.json();
+      setWorkItems(data.items ?? []);
+    } catch (error) {
+      console.error("Failed to fetch admin portfolio:", error);
+      setWorkItemsError("Daftar karya gagal dimuat. Coba muat ulang.");
+    } finally {
+      setWorkItemsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if ((session?.user as { role?: string })?.role === "admin") {
       fetchAdminData();
-      fetch("/api/admin/portfolio").then((res) => res.ok ? res.json() : null).then((data) => {
-        if (data?.items) setWorkItems(data.items);
-      }).catch(() => {});
+      void fetchPortfolioItems();
       fetch("/api/admin/settings").then((res) => res.ok ? res.json() : null).then((data) => {
         if (!data) return;
         setOnlinePaymentEnabled(data.onlinePaymentEnabled === true);
@@ -254,7 +272,7 @@ export default function AdminPage() {
       fetch("/api/admin/pricing").then((res) => res.ok ? res.json() : null).then((data) => data?.pricing && setPricing(data.pricing)).catch(() => {});
       loadPromos().catch(() => {});
     }
-  }, [session, fetchAdminData]);
+  }, [session, fetchAdminData, fetchPortfolioItems]);
 
   const handleWorkImageChange = (file: File | null) => {
     setWorkImageFile(file);
@@ -816,8 +834,13 @@ export default function AdminPage() {
                 <label className="block text-xs font-medium text-muted mb-1.5">Gambar karya</label>
                 <div className="flex items-center gap-3">
                   {workImagePreview ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={workImagePreview} alt="Pratinjau" className="h-20 w-20 rounded-lg object-cover border border-line shrink-0" />
+                    <LazyImage
+                      src={workImagePreview}
+                      alt="Pratinjau"
+                      loading="eager"
+                      className="h-20 w-20 shrink-0 rounded-lg border border-line"
+                      imageClassName="h-full w-full object-cover"
+                    />
                   ) : (
                     <div className="h-20 w-20 rounded-lg border border-dashed border-line flex items-center justify-center shrink-0 text-muted">
                       <Upload className="h-5 w-5" />
@@ -901,7 +924,32 @@ export default function AdminPage() {
           </div>
 
           {/* Daftar karya tersimpan */}
-          {workItems.length === 0 ? (
+          {workItemsLoading ? (
+            <div
+              role="status"
+              aria-label="Memuat daftar karya"
+              aria-busy="true"
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {Array.from({ length: 3 }, (_, index) => (
+                <div key={index} aria-hidden="true" className="overflow-hidden rounded-lg border border-line bg-card">
+                  <Skeleton className="h-32 w-full rounded-none" />
+                  <div className="space-y-2 p-3">
+                    <Skeleton className="h-3 w-1/2" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : workItemsError ? (
+            <div className="flex flex-wrap items-center gap-3 text-sm text-danger" role="alert">
+              <span>{workItemsError}</span>
+              <button type="button" onClick={() => void fetchPortfolioItems()} className="font-medium underline">
+                Coba lagi
+              </button>
+            </div>
+          ) : workItems.length === 0 ? (
             <p className="text-sm text-muted">Belum ada karya yang ditambahkan lewat form ini.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -915,8 +963,12 @@ export default function AdminPage() {
                   >
                     {workDeletingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
                   </button>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={`/api/portfolio/image/${item.imageId}`} alt={item.judul} className="h-32 w-full object-cover" />
+                  <LazyImage
+                    src={`/api/portfolio/image/${item.imageId}`}
+                    alt={item.judul}
+                    className="h-32 w-full"
+                    imageClassName="h-full w-full object-cover"
+                  />
                   <div className="p-3">
                     <div className="flex items-center gap-1.5 mb-1">
                       <span className="font-mono text-[11px] tracking-widest text-accent bg-accent/5 border border-accent/20 rounded-full px-2 py-0.5">
