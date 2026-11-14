@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@types/pdfkit": "^0.17.6",
+    "@vercel/speed-insights": "^2.1.0",
     "framer-motion": "^13.1.1",
     "i": "^0.3.7",
     "lucide-react": "^0.383.0",
