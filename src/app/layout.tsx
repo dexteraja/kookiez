@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, IBM_Plex_Mono, Instrument_Sans } from "next/font/g
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n";
 import AuthProvider from "@/components/AuthProvider";
+import { Analytics } from '@vercel/analytics/next';
 
 const display = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -56,6 +57,7 @@ export default function RootLayout({
         <AuthProvider>
           <LanguageProvider>{children}</LanguageProvider>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
